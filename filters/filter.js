@@ -1,15 +1,25 @@
 function matches(apt, filters) {
-  if (filters.price.min && apt.price && apt.price < filters.price.min) return false;
-  if (filters.price.max && apt.price && apt.price > filters.price.max) return false;
-  if (filters.rooms.min && apt.rooms && apt.rooms < filters.rooms.min) return false;
-  if (filters.rooms.max && apt.rooms && apt.rooms > filters.rooms.max) return false;
-  if (filters.sizeSqm.min && apt.size_sqm && apt.size_sqm < filters.sizeSqm.min) return false;
-  if (filters.sizeSqm.max && apt.size_sqm && apt.size_sqm > filters.sizeSqm.max) return false;
+  // מחיר — חובה: חייב להיות ידוע ובטווח
+  if (!apt.price || apt.price <= 0) return false;
+  if (apt.price < filters.price.min || apt.price > filters.price.max) return false;
+
+  // חדרים — חובה: חייב להיות ידוע ובטווח
+  if (!apt.rooms || apt.rooms <= 0) return false;
+  if (apt.rooms < filters.rooms.min || apt.rooms > filters.rooms.max) return false;
+
+  // גודל מ"ר — אופציונלי: רק אם ידוע, בודקים
+  if (apt.size_sqm > 0 && filters.sizeSqm.max > 0) {
+    if (apt.size_sqm < filters.sizeSqm.min || apt.size_sqm > filters.sizeSqm.max) return false;
+  }
+
   return true;
 }
 
 function applyFilters(apartments, filters) {
-  return apartments.filter(apt => matches(apt, filters));
+  const before = apartments.length;
+  const result = apartments.filter(apt => matches(apt, filters));
+  console.log(`[filter] ${before} מודעות → ${result.length} אחרי פילטר קפדני`);
+  return result;
 }
 
 module.exports = { applyFilters };
