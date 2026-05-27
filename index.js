@@ -121,16 +121,20 @@ app.get('/api/debug-scan', async (req, res) => {
   }
 });
 
-// GET בדיקת Chromium מהירה
+// GET בדיקת Chromium + Puppeteer מהירה
 app.get('/api/chrome-check', async (req, res) => {
-  const { getChromiumPath } = require('./scrapers/puppeteerHelper');
-  const { execSync } = require('child_process');
+  const { launchBrowser, getChromiumPath } = require('./scrapers/puppeteerHelper');
   const chromePath = getChromiumPath();
-  let version = null, err = null;
+  let launched = false, title = null, err = null;
   try {
-    version = execSync(`"${chromePath}" --version 2>&1`, { encoding: 'utf8', timeout: 5000 }).trim();
+    const browser = await launchBrowser();
+    launched = true;
+    const page = await browser.newPage();
+    await page.goto('about:blank', { timeout: 10000 });
+    title = await page.title();
+    await browser.close();
   } catch (e) { err = e.message; }
-  res.json({ chromePath, version, error: err });
+  res.json({ chromePath, launched, title, error: err });
 });
 
 // GET raw HTTP test — מה בדיוק מגיע מהשרתים (לאבחון)
