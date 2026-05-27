@@ -1,3 +1,6 @@
+[phases.setup]
+nixPkgs = ["python3", "gcc", "gnumake"]
+
 [phases.install]
 cmds = ["npm ci --omit=dev"]
 
