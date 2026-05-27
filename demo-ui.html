@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>סוכן נדל״ן חכם</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, Arial, sans-serif;
+    background: #F1F5F9;
+    color: #1E293B;
+    direction: rtl;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: #fff;
+    border-bottom: 1px solid #E2E8F0;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .header-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1E293B;
+  }
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #DCFCE7;
+    color: #166534;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 999px;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    background: #22C55E;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100%{opacity:1} 50%{opacity:.4}
+  }
+
+  /* ── TABS ── */
+  .tabs-wrapper {
+    background: #fff;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    padding: 0 32px;
+  }
+  .tab-btn {
+    padding: 14px 24px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    color: #64748B;
+    border-bottom: 3px solid transparent;
+    transition: color .2s, border-color .2s;
+    font-family: system-ui, Arial, sans-serif;
+  }
+  .tab-btn:hover { color: #2563EB; }
+  .tab-btn.active {
+    color: #2563EB;
+    border-bottom-color: #2563EB;
+  }
+
+  /* ── CONTENT ── */
+  .content {
+    max-width: 900px;
+    margin: 32px auto;
+    padding: 0 16px;
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── CARD BASE ── */
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.07);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: #1E293B;
+  }
+
+  /* ────────────────────────────────────────────
+     TAB 1 — SOURCES
+  ──────────────────────────────────────────── */
+  .sources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .source-card {
+    background: #fff;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: box-shadow .2s;
+  }
+  .source-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+  .source-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .source-logo {
+    width: 48px; height: 48px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+  }
+  .logo-yad2   { background: linear-gradient(135deg,#E84B22,#F97316); }
+  .logo-madlan { background: linear-gradient(135deg,#2563EB,#3B82F6); }
+  .logo-tg     { background: linear-gradient(135deg,#0EA5E9,#38BDF8); }
+
+  .source-name { font-size: 16px; font-weight: 700; }
+  .badge-connected {
+    background: #DCFCE7;
+    color: #166534;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+  .source-desc { font-size: 13px; color: #64748B; }
+  .tg-input {
+    width: 100%;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: system-ui, Arial, sans-serif;
+    direction: ltr;
+    text-align: left;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .tg-input:focus { border-color: #2563EB; }
+
+  .add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #EFF6FF;
+    color: #2563EB;
+    border: 2px dashed #93C5FD;
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: system-ui, Arial, sans-serif;
+    transition: background .2s, border-color .2s;
+  }
+  .add-btn:hover { background: #DBEAFE; border-color: #60A5FA; }
+
+  .add-link-area {
+    display: none;
+    margin-top: 16px;
+    gap: 10px;
+    align-items: center;
+  }
+  .add-link-area.visible { display: flex; }
+  .link-input {
+    flex: 1;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: system-ui, Arial, sans-serif;
+    direction: ltr;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .link-input:focus { border-color: #2563EB; }
+  .confirm-btn {
+    background: #2563EB;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: system-ui, Arial, sans-serif;
+    transition: background .2s;
+  }
+  .confirm-btn:hover { background: #1D4ED8; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: #FEF2F2;
+    border: 1.5px solid #FCA5A5;
+    color: #991B1B;
+    border-radius: 10px;
+    padding: 14px 22px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    z-index: 9999;
+    transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ────────────────────────────────────────────
+     TAB 2 — SETTINGS
+  ──────────────────────────────────────────── */
+  .settings-form { display: flex; flex-direction: column; gap: 28px; }
+  .form-group { display: flex; flex-direction: column; gap: 8px; }
+  .form-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+  }
+  .range-value {
+    font-size: 14px;
+    color: #2563EB;
+    font-weight: 600;
+  }
+
+  /* DUAL RANGE SLIDER */
+  .dual-slider-wrapper {
+    position: relative;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    direction: ltr;
+  }
+  .dual-slider-track {
+    position: absolute;
+    width: 100%;
+    height: 6px;
+    background: #E2E8F0;
+    border-radius: 3px;
+    pointer-events: none;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .dual-slider-fill {
+    position: absolute;
+    height: 6px;
+    background: #2563EB;
+    border-radius: 3px;
+    pointer-events: none;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .dual-slider-wrapper input[type=range] {
+    position: absolute;
+    width: 100%;
+    height: 6px;
+    background: none;
+    appearance: none;
+    -webkit-appearance: none;
+    pointer-events: none;
+    outline: none;
+  }
+  .dual-slider-wrapper input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #2563EB;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(37,99,235,.4);
+    cursor: pointer;
+    pointer-events: all;
+    transition: box-shadow .15s, transform .15s;
+  }
+  .dual-slider-wrapper input[type=range]::-webkit-slider-thumb:hover {
+    box-shadow: 0 2px 10px rgba(37,99,235,.6);
+    transform: scale(1.15);
+  }
+  .dual-slider-wrapper input[type=range]::-moz-range-thumb {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #2563EB;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(37,99,235,.4);
+    cursor: pointer;
+    pointer-events: all;
+  }
+
+  /* SELECT / DATALIST */
+  .form-select, .form-text-input {
+    border: 1.5px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: system-ui, Arial, sans-serif;
+    outline: none;
+    transition: border-color .2s;
+    background: #fff;
+    width: 100%;
+    direction: rtl;
+  }
+  .form-select:focus, .form-text-input:focus { border-color: #2563EB; }
+
+  /* CHECKBOXES */
+  .checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .checkbox-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #F8FAFC;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all .2s;
+    user-select: none;
+  }
+  .checkbox-pill:hover { border-color: #93C5FD; background: #EFF6FF; }
+  .checkbox-pill input[type=checkbox] { display: none; }
+  .checkbox-pill.checked {
+    background: #EFF6FF;
+    border-color: #2563EB;
+    color: #2563EB;
+    font-weight: 600;
+  }
+  .checkbox-pill.checked::before {
+    content: "✓ ";
+    color: #2563EB;
+  }
+
+  /* SAVE BTN */
+  .save-btn {
+    background: #2563EB;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: system-ui, Arial, sans-serif;
+    transition: background .2s, transform .1s;
+    box-shadow: 0 4px 14px rgba(37,99,235,.35);
+  }
+  .save-btn:hover { background: #1D4ED8; }
+  .save-btn:active { transform: scale(.98); }
+
+  /* SAVE TOAST */
+  .save-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #DCFCE7;
+    border: 1.5px solid #86EFAC;
+    color: #166534;
+    border-radius: 10px;
+    padding: 14px 22px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    z-index: 9999;
+    transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+  }
+  .save-toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ────────────────────────────────────────────
+     TAB 3 — RESULTS
+  ──────────────────────────────────────────── */
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .results-counter {
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748B;
+    background: #F1F5F9;
+    padding: 6px 14px;
+    border-radius: 999px;
+  }
+  .nav-arrows {
+    display: flex;
+    gap: 8px;
+  }
+  .arrow-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 1.5px solid #E2E8F0;
+    background: #fff;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s;
+    color: #374151;
+  }
+  .arrow-btn:hover:not(:disabled) {
+    background: #EFF6FF;
+    border-color: #2563EB;
+    color: #2563EB;
+  }
+  .arrow-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  .apt-card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.08);
+    overflow: hidden;
+    animation: fadeIn .3s ease;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  .apt-image {
+    width: 100%;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    color: rgba(255,255,255,.7);
+  }
+  .apt-body { padding: 24px; }
+  .apt-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .apt-address { font-size: 18px; font-weight: 700; }
+  .source-tag {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .tag-yad2   { background: #FEF3C7; color: #92400E; }
+  .tag-madlan { background: #DBEAFE; color: #1E40AF; }
+  .tag-tg     { background: #E0F2FE; color: #0C4A6E; }
+
+  .apt-details {
+    font-size: 14px;
+    color: #475569;
+    margin-bottom: 12px;
+    line-height: 1.7;
+  }
+  .apt-price {
+    font-size: 22px;
+    font-weight: 800;
+    color: #2563EB;
+    margin-bottom: 10px;
+  }
+  .apt-desc {
+    font-size: 14px;
+    color: #64748B;
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+  .apt-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .apt-link {
+    background: #2563EB;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    font-family: system-ui, Arial, sans-serif;
+    transition: background .2s;
+  }
+  .apt-link:hover { background: #1D4ED8; }
+  .apt-time { font-size: 12px; color: #94A3B8; }
+
+  .divider {
+    height: 1px;
+    background: #E2E8F0;
+    margin: 20px 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-title">סוכן נדל״ן חכם 🏠</div>
+  <div class="status-badge">
+    <div class="status-dot"></div>
+    הסוכן פעיל ✓
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs-wrapper">
+  <button class="tab-btn active" onclick="switchTab('sources',this)">🔗 מקורות</button>
+  <button class="tab-btn" onclick="switchTab('settings',this)">⚙️ הגדרות</button>
+  <button class="tab-btn" onclick="switchTab('results',this)">🏠 תוצאות</button>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 1 — SOURCES
+════════════════════════════════════════ -->
+<div class="content">
+
+<div id="tab-sources" class="tab-panel active">
+  <div class="card">
+    <div class="section-title">מקורות מחוברים</div>
+    <div class="sources-grid">
+
+      <!-- Yad2 -->
+      <div class="source-card">
+        <div class="source-header">
+          <div class="source-logo logo-yad2">י2</div>
+          <span class="badge-connected">מחובר ✓</span>
+        </div>
+        <div class="source-name">יד2</div>
+        <div class="source-desc">אחד הפורטלים הגדולים בישראל לנדל"ן — דירות, בתים ועוד</div>
+      </div>
+
+      <!-- Madlan -->
+      <div class="source-card">
+        <div class="source-header">
+          <div class="source-logo logo-madlan">מד</div>
+          <span class="badge-connected">מחובר ✓</span>
+        </div>
+        <div class="source-name">מדלן</div>
+        <div class="source-desc">פלטפורמת נדל"ן עם נתוני שוק, מחירים ומפות אינטראקטיביות</div>
+      </div>
+
+      <!-- Telegram -->
+      <div class="source-card">
+        <div class="source-header">
+          <div class="source-logo logo-tg">✈️</div>
+          <span class="badge-connected">מחובר ✓</span>
+        </div>
+        <div class="source-name">קבוצות טלגרם</div>
+        <div class="source-desc">סריקת קבוצות טלגרם לדירות — הדבק קישור קבוצה</div>
+        <input class="tg-input" type="text" placeholder="t.me/group_name או @GroupName" value="@TLVApartments">
+      </div>
+
+    </div>
+
+    <div class="divider"></div>
+
+    <button class="add-btn" onclick="toggleAddLink()">
+      <span style="font-size:18px;">+</span> הוסף קישור
+    </button>
+
+    <div class="add-link-area" id="addLinkArea">
+      <input class="link-input" type="text" id="newLinkInput" placeholder="הדבק כתובת URL...">
+      <button class="confirm-btn" onclick="confirmAddLink()">הוסף</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 2 — SETTINGS
+════════════════════════════════════════ -->
+<div id="tab-settings" class="tab-panel">
+  <div class="card">
+    <div class="section-title">הגדרות חיפוש</div>
+    <div class="settings-form">
+
+      <!-- 1. גודל דירה -->
+      <div class="form-group">
+        <label class="form-label">טווח גודל דירה במ"ר</label>
+        <div class="dual-slider-wrapper" id="sizeSlider">
+          <div class="dual-slider-track"></div>
+          <div class="dual-slider-fill" id="sizeFill"></div>
+          <input type="range" id="sizeMin" min="0" max="300" value="50" step="5">
+          <input type="range" id="sizeMax" min="0" max="300" value="150" step="5">
+        </div>
+        <span class="range-value" id="sizeVal">50 מ"ר — 150 מ"ר</span>
+      </div>
+
+      <!-- 2. עיר בסיס -->
+      <div class="form-group">
+        <label class="form-label">עיר בסיס</label>
+        <input class="form-text-input" type="text" list="citiesList" id="cityInput" placeholder="הקלד שם עיר..." value="תל אביב">
+        <datalist id="citiesList">
+          <option value="תל אביב">
+          <option value="ירושלים">
+          <option value="חיפה">
+          <option value="באר שבע">
+          <option value="רמת גן">
+          <option value="גבעתיים">
+          <option value="פתח תקווה">
+          <option value="ראשון לציון">
+          <option value="נס ציונה">
+          <option value="רחובות">
+          <option value="הרצליה">
+          <option value="כפר סבא">
+          <option value="רעננה">
+          <option value="נתניה">
+          <option value="חולון">
+          <option value="בת ים">
+          <option value="אשדוד">
+          <option value="אשקלון">
+          <option value="מודיעין">
+          <option value="רמת השרון">
+          <option value="הוד השרון">
+          <option value="יהוד">
+          <option value="לוד">
+          <option value="רמלה">
+          <option value="נהריה">
+          <option value="עכו">
+          <option value="טבריה">
+          <option value="צפת">
+          <option value="קריית שמונה">
+          <option value="אילת">
+        </datalist>
+      </div>
+
+      <!-- 3. טווח חיפוש ק"מ -->
+      <div class="form-group">
+        <label class="form-label">טווח חיפוש (ק"מ)</label>
+        <div class="dual-slider-wrapper" id="radiusSlider">
+          <div class="dual-slider-track"></div>
+          <div class="dual-slider-fill" id="radiusFill"></div>
+          <input type="range" id="radiusMin" min="0" max="50" value="0" step="1">
+          <input type="range" id="radiusMax" min="0" max="50" value="10" step="1">
+        </div>
+        <span class="range-value" id="radiusVal">0 ק"מ — 10 ק"מ</span>
+      </div>
+
+      <!-- 4. מספר חדרים -->
+      <div class="form-group">
+        <label class="form-label">מספר חדרים</label>
+        <div class="dual-slider-wrapper" id="roomsSlider">
+          <div class="dual-slider-track"></div>
+          <div class="dual-slider-fill" id="roomsFill"></div>
+          <input type="range" id="roomsMin" min="1" max="7" value="2" step="0.5">
+          <input type="range" id="roomsMax" min="1" max="7" value="5" step="0.5">
+        </div>
+        <span class="range-value" id="roomsVal">2 חדרים — 5 חדרים</span>
+      </div>
+
+      <!-- 5. סוג עסקה -->
+      <div class="form-group">
+        <label class="form-label">סוג עסקה</label>
+        <select class="form-select" id="dealType" onchange="onDealTypeChange()">
+          <option value="rent">שכירות</option>
+          <option value="buy">קניה</option>
+        </select>
+      </div>
+
+      <!-- 6. טווח מחיר -->
+      <div class="form-group">
+        <label class="form-label" id="priceLabel">טווח מחיר (₪)</label>
+        <div class="dual-slider-wrapper" id="priceSlider">
+          <div class="dual-slider-track"></div>
+          <div class="dual-slider-fill" id="priceFill"></div>
+          <input type="range" id="priceMin" min="0" max="10000" value="3000" step="100">
+          <input type="range" id="priceMax" min="0" max="10000" value="7000" step="100">
+        </div>
+        <span class="range-value" id="priceVal">3,000 ₪ — 7,000 ₪</span>
+      </div>
+
+      <!-- 7. סוג נכס -->
+      <div class="form-group">
+        <label class="form-label">סוג נכס</label>
+        <div class="checkbox-group" id="propTypeGroup">
+          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">בית פרטי</label>
+          <label class="checkbox-pill checked" onclick="togglePill(this)"><input type="checkbox" checked>דירה</label>
+          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">דו משפחתי</label>
+          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">דופלקס</label>
+          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">קוטג'</label>
+          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">דירת גן</label>
+        </div>
+      </div>
+
+      <!-- 8. משתני נוחות -->
+      <div class="form-group">
+        <label class="form-label">משתני נוחות</label>
+        <div class="checkbox-group" id="amenitiesGroup">
+          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">ממ"ד</label>
+          <label class="checkbox-pill checked" onclick="togglePill(this)"><input type="checkbox" checked>חצר</label>
+          <label class="checkbox-pill checked" onclick="togglePill(this)"><input type="checkbox" checked>מרפסת</label>
+          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">מעלית</label>
+          <label class="checkbox-pill checked" onclick="togglePill(this)"><input type="checkbox" checked>חניה</label>
+        </div>
+      </div>
+
+      <button class="save-btn" onclick="saveSettings()">שמור הגדרות</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 3 — RESULTS
+════════════════════════════════════════ -->
+<div id="tab-results" class="tab-panel">
+
+  <div class="results-header">
+    <div class="section-title" style="margin-bottom:0;">תוצאות חיפוש</div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="results-counter" id="counter">1 מתוך 4</span>
+      <div class="nav-arrows">
+        <button class="arrow-btn" id="prevBtn" onclick="navigate(-1)" title="הקודם">&#x2039;</button>
+        <button class="arrow-btn" id="nextBtn" onclick="navigate(1)" title="הבא">&#x203A;</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="aptCardWrapper"></div>
+
+</div>
+
+</div><!-- /content -->
+
+<!-- TOASTS -->
+<div class="toast" id="fbToast">⚠️ פייסבוק אינו נתמך כרגע — האפשרות חסומה</div>
+<div class="save-toast" id="saveToast">✅ ההגדרות נשמרו בהצלחה</div>
+
+<script>
+/* ════════════════════════════════════
+   TAB SWITCHING
+════════════════════════════════════ */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ════════════════════════════════════
+   DUAL RANGE SLIDERS
+════════════════════════════════════ */
+function initDualSlider(minId, maxId, fillId, displayId, formatter) {
+  var minEl = document.getElementById(minId);
+  var maxEl = document.getElementById(maxId);
+  var fill  = document.getElementById(fillId);
+  var disp  = document.getElementById(displayId);
+  var min   = parseFloat(minEl.min);
+  var max   = parseFloat(minEl.max);
+
+  function update() {
+    var lo = parseFloat(minEl.value);
+    var hi = parseFloat(maxEl.value);
+    if (lo > hi) {
+      // swap if they cross
+      var tmp = lo; lo = hi; hi = tmp;
+    }
+    var pctLo = (lo - min) / (max - min) * 100;
+    var pctHi = (hi - min) / (max - min) * 100;
+    fill.style.right = (100 - pctHi) + '%';
+    fill.style.left  = 'auto';
+    fill.style.width = (pctHi - pctLo) + '%';
+    // RTL: inset from right
+    fill.style.right = 'auto';
+    fill.style.left  = pctLo + '%';
+    fill.style.width = (pctHi - pctLo) + '%';
+    disp.textContent = formatter(lo, hi);
+  }
+
+  minEl.addEventListener('input', update);
+  maxEl.addEventListener('input', update);
+  update();
+}
+
+function fmtMeter(lo, hi) { return lo + ' מ"ר — ' + hi + ' מ"ר'; }
+function fmtKm(lo, hi)    { return lo + ' ק"מ — ' + hi + ' ק"מ'; }
+function fmtRooms(lo, hi) { return lo + ' חדרים — ' + hi + ' חדרים'; }
+function fmtPrice(lo, hi) {
+  var dealType = document.getElementById('dealType').value;
+  if (dealType === 'buy') {
+    return numFmt(lo) + ' ₪ — ' + numFmt(hi) + ' ₪';
+  }
+  return numFmt(lo) + ' ₪ — ' + numFmt(hi) + ' ₪';
+}
+function numFmt(n) { return Number(n).toLocaleString('he-IL'); }
+
+/* initialize all sliders */
+initDualSlider('sizeMin',   'sizeMax',   'sizeFill',   'sizeVal',   fmtMeter);
+initDualSlider('radiusMin', 'radiusMax', 'radiusFill', 'radiusVal', fmtKm);
+initDualSlider('roomsMin',  'roomsMax',  'roomsFill',  'roomsVal',  fmtRooms);
+initDualSlider('priceMin',  'priceMax',  'priceFill',  'priceVal',  fmtPrice);
+
+/* ════════════════════════════════════
+   DEAL TYPE TOGGLE
+════════════════════════════════════ */
+function onDealTypeChange() {
+  var type  = document.getElementById('dealType').value;
+  var pMin  = document.getElementById('priceMin');
+  var pMax  = document.getElementById('priceMax');
+  var label = document.getElementById('priceLabel');
+
+  if (type === 'buy') {
+    pMin.max   = '4000000';
+    pMax.max   = '4000000';
+    pMin.step  = '50000';
+    pMax.step  = '50000';
+    pMin.value = '500000';
+    pMax.value = '2000000';
+    label.textContent = 'טווח מחיר (₪) — קניה';
+  } else {
+    pMin.max   = '10000';
+    pMax.max   = '10000';
+    pMin.step  = '100';
+    pMax.step  = '100';
+    pMin.value = '3000';
+    pMax.value = '7000';
+    label.textContent = 'טווח מחיר (₪) — שכירות';
+  }
+  // re-trigger update
+  pMin.dispatchEvent(new Event('input'));
+  pMax.dispatchEvent(new Event('input'));
+}
+
+/* ════════════════════════════════════
+   CHECKBOX PILLS
+════════════════════════════════════ */
+function togglePill(el) {
+  el.classList.toggle('checked');
+  var cb = el.querySelector('input[type=checkbox]');
+  cb.checked = el.classList.contains('checked');
+}
+
+/* ════════════════════════════════════
+   SAVE SETTINGS
+════════════════════════════════════ */
+function saveSettings() {
+  showToast('saveToast');
+}
+
+/* ════════════════════════════════════
+   ADD LINK / FACEBOOK BLOCK
+════════════════════════════════════ */
+var addLinkOpen = false;
+function toggleAddLink() {
+  var area = document.getElementById('addLinkArea');
+  addLinkOpen = !addLinkOpen;
+  if (addLinkOpen) {
+    area.classList.add('visible');
+    document.getElementById('newLinkInput').focus();
+  } else {
+    area.classList.remove('visible');
+  }
+}
+
+function confirmAddLink() {
+  var val = document.getElementById('newLinkInput').value.trim().toLowerCase();
+  if (!val) return;
+
+  if (val.indexOf('facebook') !== -1 || val.indexOf('fb.com') !== -1) {
+    showToast('fbToast');
+    return;
+  }
+
+  // Accept: just show a brief success feedback
+  document.getElementById('newLinkInput').value = '';
+  document.getElementById('addLinkArea').classList.remove('visible');
+  addLinkOpen = false;
+  // Could add the new card here — for demo, just hide
+}
+
+/* ════════════════════════════════════
+   TOAST HELPER
+════════════════════════════════════ */
+function showToast(id) {
+  var el = document.getElementById(id);
+  el.classList.add('show');
+  setTimeout(function() { el.classList.remove('show'); }, 3200);
+}
+
+/* ════════════════════════════════════
+   RESULTS — CARD CAROUSEL
+════════════════════════════════════ */
+var apartments = [
+  {
+    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    emoji: '🏢',
+    address: 'רחוב הרצל 12, תל אביב',
+    details: '4 חדרים | 95 מ"ר | קומה 3 | חניה ✓ | מרפסת ✓',
+    price: '6,500 ₪ לחודש',
+    source: 'יד2',
+    sourceClass: 'tag-yad2',
+    desc: 'דירה מרווחת ומוארת בלב תל אביב, שיפוץ מלא ב-2022. נוף פתוח, קרוב לכל מוסדות החינוך, קניון ובתי קפה.',
+    time: 'לפני 3 שעות'
+  },
+  {
+    gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    emoji: '🌳',
+    address: 'שדרות בן גוריון 5, רמת גן',
+    details: '3.5 חדרים | 80 מ"ר | קומה 2 | מרפסת ✓',
+    price: '5,800 ₪ לחודש',
+    source: 'מדלן',
+    sourceClass: 'tag-madlan',
+    desc: 'דירה שקטה בשדרה ירוקה, קרובה לפארק הלאומי. בניין טיפוח, שכנים נעימים. כניסה מיידית.',
+    time: 'לפני 7 שעות'
+  },
+  {
+    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    emoji: '🏡',
+    address: 'רחוב ויצמן 33, גבעתיים',
+    details: '5 חדרים | 120 מ"ר | קומה 4 | ממ"ד ✓ | חניה ✓ | מרפסת ✓',
+    price: '8,200 ₪ לחודש',
+    source: 'טלגרם',
+    sourceClass: 'tag-tg',
+    desc: 'דירת 5 חדרים פנורמית עם נוף לגוש דן, מרפסת גדולה, ממ"ד, 2 חניות. בניין יוקרתי עם לובי ומעלית.',
+    time: 'לפני 1 שעה'
+  },
+  {
+    gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+    emoji: '🏘️',
+    address: 'רחוב אלנבי 88, תל אביב',
+    details: '3 חדרים | 72 מ"ר | קומה 1 | מעלית ✓',
+    price: '5,200 ₪ לחודש',
+    source: 'יד2',
+    sourceClass: 'tag-yad2',
+    desc: 'דירה חמודה ואינטימית בלב הרובע ההיסטורי, מרחק הליכה מהים. מותאמת לזוג או יחיד. לא כשר.',
+    time: 'לפני 12 שעות'
+  }
+];
+
+var currentApt = 0;
+
+function renderApt(idx) {
+  var a = apartments[idx];
+  var wrapper = document.getElementById('aptCardWrapper');
+  wrapper.innerHTML =
+    '<div class="apt-card">' +
+      '<div class="apt-image" style="background:' + a.gradient + '">' + a.emoji + '</div>' +
+      '<div class="apt-body">' +
+        '<div class="apt-top">' +
+          '<div class="apt-address">' + a.address + '</div>' +
+          '<span class="source-tag ' + a.sourceClass + '">' + a.source + '</span>' +
+        '</div>' +
+        '<div class="apt-details">' + a.details + '</div>' +
+        '<div class="apt-price">' + a.price + '</div>' +
+        '<div class="apt-desc">' + a.desc + '</div>' +
+        '<div class="apt-footer">' +
+          '<a class="apt-link" href="#">עבור למודעה &#x2190;</a>' +
+          '<span class="apt-time">זמן פרסום: ' + a.time + '</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  document.getElementById('counter').textContent = (idx + 1) + ' מתוך ' + apartments.length;
+  document.getElementById('prevBtn').disabled = (idx === 0);
+  document.getElementById('nextBtn').disabled = (idx === apartments.length - 1);
+}
+
+function navigate(dir) {
+  currentApt = Math.max(0, Math.min(apartments.length - 1, currentApt + dir));
+  renderApt(currentApt);
+}
+
+// init
+renderApt(0);
+</script>
+</body>
+</html>

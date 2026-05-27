@@ -1,0 +1,24 @@
+{
+  "sources": {
+    "yad2": true,
+    "madlan": true,
+    "telegram": true,
+    "telegramChannels": []
+  },
+  "filters": {
+    "dealType": "rent",
+    "cityName": "תל אביב",
+    "cityCode": "5000",
+    "radiusKm": 10,
+    "rooms": { "min": 2, "max": 5 },
+    "sizeSqm": { "min": 50, "max": 150 },
+    "price": { "min": 3000, "max": 7000 },
+    "propertyTypes": ["דירה"],
+    "amenities": []
+  },
+  "notifications": {
+    "dailyDigestTime": "19:30",
+    "phones": ["+9720507226589", "+9720545207739"],
+    "emails": ["ofek7pass@gmail.com", "yamfrish@gmail.com"]
+  }
+}
