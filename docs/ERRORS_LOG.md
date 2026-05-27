@@ -37,10 +37,27 @@ at /app/node_modules/undici/lib/web/webidl/index.js:537:48
 
 ## שגיאות פתוחות / ידועות
 
-*(יתווספו בזמן הפיתוח)*
+### 27.05.2026 — יד2 מחזירה security challenge מ-Railway
+**תיאור:** כל בקשה ל-`www.yad2.co.il` מ-Railway US West מחזירה עמוד "אבטחת אתר"
+**סביבה:** Railway (Production)
+**גורם:** יד2 חוסמת IP-ים זרים
+**סטטוס:** בבדיקה — Puppeteer עם Dockerfile עשוי לעקוף (לא נבדק עד הסוף)
+**ראה:** `docs/SCRAPING_STATUS.md` לפירוט מלא
+
+---
+
+### 27.05.2026 — nixpkgs chromium לא תואם puppeteer-core
+**תיאור:** nixpacks מתקין `chromium` שיוצר wrapper script ב-`/usr/bin/chromium`, לא binary — puppeteer-core נכשל
+**שגיאה:** "Browser was not found at the configured executablePath (/usr/bin/chromium)"
+**פתרון:** שימוש ב-Dockerfile עם `node:20-bullseye` + `apt-get install chromium`
+**מניעה בעתיד:** לא להשתמש ב-nixpkgs לchromium — תמיד Dockerfile עם Debian
 
 ---
 
 ## לקחים כלליים
 
-*(יתווספו בזמן הפיתוח)*
+1. **Chromium על Railway** — תמיד Dockerfile (Debian), לא nixpacks
+2. **יד2/מדלן HTML scraping** — לא עובד מ-IP זר ללא headless browser
+3. **gw.yad2.co.il** — ה-API endpoint שניסינו לא קיים (404)
+4. **madlan.co.il/api/graphql** — לא קיים (404)
+5. **Madlan** — אין `__NEXT_DATA__`, נטעין ב-JS, דורש headless browser
