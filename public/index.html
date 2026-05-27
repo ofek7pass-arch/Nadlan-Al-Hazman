@@ -576,10 +576,11 @@
         </div>
         <div class="source-name">קבוצות טלגרם</div>
         <div class="source-desc">סריקת קבוצות טלגרם לדירות — הדבק קישור קבוצה</div>
-        <input class="tg-input" type="text" placeholder="t.me/group_name או @GroupName" value="@TLVApartments">
+        <input class="tg-input" type="text" placeholder="t.me/group_name או @GroupName">
       </div>
 
     </div>
+    <div id="extraSources"></div>
 
     <div class="divider"></div>
 
@@ -879,20 +880,78 @@ function toggleAddLink() {
   }
 }
 
-function confirmAddLink() {
-  var val = document.getElementById('newLinkInput').value.trim().toLowerCase();
-  if (!val) return;
+function isTelegram(val) {
+  return val.indexOf('t.me') !== -1 || val.indexOf('telegram') !== -1 || val.startsWith('@');
+}
+
+function addSourceCard(username) {
+  var clean = username.replace(/^@/,'').replace(/^https?:\/\/t\.me\//,'').replace(/\/$/, '');
+  var existing = document.getElementById('src-' + clean);
+  if (existing) return;
+  var div = document.createElement('div');
+  div.id = 'src-' + clean;
+  div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:10px;padding:12px 16px;margin-top:10px;';
+  div.innerHTML =
+    '<div style="display:flex;align-items:center;gap:10px;">' +
+      '<div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#0EA5E9,#38BDF8);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;">✈️</div>' +
+      '<div>' +
+        '<div style="font-weight:600;font-size:14px;">@' + clean + '</div>' +
+        '<div style="font-size:12px;color:#64748b;">ערוץ טלגרם</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;align-items:center;gap:8px;">' +
+      '<span style="background:#DCFCE7;color:#166534;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;">מחובר ✓</span>' +
+      '<button onclick="removeSource(\'' + clean + '\')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;line-height:1;">×</button>' +
+    '</div>';
+  document.getElementById('extraSources').appendChild(div);
+}
+
+async function removeSource(username) {
+  document.getElementById('src-' + username)?.remove();
+  var channels = Array.from(document.querySelectorAll('#extraSources [id^="src-"]'))
+    .map(el => '@' + el.id.replace('src-',''));
+  await saveChannels(channels);
+}
+
+async function saveChannels(channels) {
+  try {
+    var res = await fetch('/api/settings');
+    var cfg = await res.json();
+    cfg.sources = cfg.sources || {};
+    cfg.sources.telegramChannels = channels;
+    await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cfg)
+    });
+  } catch(e) {}
+}
+
+async function confirmAddLink() {
+  var raw = document.getElementById('newLinkInput').value.trim();
+  if (!raw) return;
+  var val = raw.toLowerCase();
 
   if (val.indexOf('facebook') !== -1 || val.indexOf('fb.com') !== -1) {
     showToast('fbToast');
     return;
   }
 
-  // Accept: just show a brief success feedback
+  if (isTelegram(val)) {
+    var clean = raw.replace(/^@/,'').replace(/^https?:\/\/t\.me\//,'').replace(/\/$/, '');
+    addSourceCard(clean);
+    var channels = Array.from(document.querySelectorAll('#extraSources [id^="src-"]'))
+      .map(el => '@' + el.id.replace('src-',''));
+    await saveChannels(channels);
+    document.getElementById('newLinkInput').value = '';
+    document.getElementById('addLinkArea').classList.remove('visible');
+    addLinkOpen = false;
+    return;
+  }
+
+  // קישור לא מוכר
+  alert('כרגע נתמכים רק קישורי טלגרם (t.me/... או @שם). קישורים אחרים בקרוב.');
   document.getElementById('newLinkInput').value = '';
-  document.getElementById('addLinkArea').classList.remove('visible');
-  addLinkOpen = false;
-  // Could add the new card here — for demo, just hide
 }
 
 /* ════════════════════════════════════
@@ -1019,9 +1078,8 @@ async function loadSettings() {
       });
     }
 
-    // טלגרם channels
-    var channels = (s.telegramChannels || []).join(', ');
-    if (channels) document.querySelector('.tg-input').value = channels;
+    // טלגרם channels — הצגת קארדים
+    (s.telegramChannels || []).forEach(function(ch) { addSourceCard(ch); });
   } catch(e) {
     console.log('loadSettings (offline mode):', e.message);
   }
