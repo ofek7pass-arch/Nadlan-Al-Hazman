@@ -702,12 +702,12 @@
       <div class="form-group">
         <label class="form-label">סוג נכס</label>
         <div class="checkbox-group" id="propTypeGroup">
-          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">בית פרטי</label>
-          <label class="checkbox-pill checked" onclick="togglePill(this)"><input type="checkbox" checked>דירה</label>
-          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">דו משפחתי</label>
-          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">דופלקס</label>
-          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">קוטג'</label>
-          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">דירת גן</label>
+          <div class="checkbox-pill" onclick="togglePill(this)">בית פרטי</div>
+          <div class="checkbox-pill" onclick="togglePill(this)">דירה</div>
+          <div class="checkbox-pill" onclick="togglePill(this)">דו משפחתי</div>
+          <div class="checkbox-pill" onclick="togglePill(this)">דופלקס</div>
+          <div class="checkbox-pill" onclick="togglePill(this)">קוטג'</div>
+          <div class="checkbox-pill" onclick="togglePill(this)">דירת גן</div>
         </div>
       </div>
 
@@ -715,11 +715,11 @@
       <div class="form-group">
         <label class="form-label">משתני נוחות</label>
         <div class="checkbox-group" id="amenitiesGroup">
-          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">ממ"ד</label>
-          <label class="checkbox-pill checked" onclick="togglePill(this)"><input type="checkbox" checked>חצר</label>
-          <label class="checkbox-pill checked" onclick="togglePill(this)"><input type="checkbox" checked>מרפסת</label>
-          <label class="checkbox-pill" onclick="togglePill(this)"><input type="checkbox">מעלית</label>
-          <label class="checkbox-pill checked" onclick="togglePill(this)"><input type="checkbox" checked>חניה</label>
+          <div class="checkbox-pill" onclick="togglePill(this)">ממ"ד</div>
+          <div class="checkbox-pill" onclick="togglePill(this)">חצר</div>
+          <div class="checkbox-pill" onclick="togglePill(this)">מרפסת</div>
+          <div class="checkbox-pill" onclick="togglePill(this)">מעלית</div>
+          <div class="checkbox-pill" onclick="togglePill(this)">חניה</div>
         </div>
       </div>
 
@@ -854,8 +854,6 @@ function onDealTypeChange() {
 ════════════════════════════════════ */
 function togglePill(el) {
   el.classList.toggle('checked');
-  var cb = el.querySelector('input[type=checkbox]');
-  cb.checked = el.classList.contains('checked');
 }
 
 /* ════════════════════════════════════
@@ -1063,18 +1061,16 @@ async function loadSettings() {
     // שחזור סוג נכס
     if (f.propertyTypes) {
       document.querySelectorAll('#propTypeGroup .checkbox-pill').forEach(function(pill) {
-        var label = pill.textContent.replace('✓ ','').trim();
-        if (f.propertyTypes.includes(label)) pill.classList.add('checked');
-        else pill.classList.remove('checked');
+        var label = pill.textContent.trim();
+        pill.classList.toggle('checked', f.propertyTypes.includes(label));
       });
     }
 
     // שחזור משתני נוחות
     if (f.amenities) {
       document.querySelectorAll('#amenitiesGroup .checkbox-pill').forEach(function(pill) {
-        var label = pill.textContent.replace('✓ ','').trim();
-        if (f.amenities.includes(label)) pill.classList.add('checked');
-        else pill.classList.remove('checked');
+        var label = pill.textContent.trim();
+        pill.classList.toggle('checked', f.amenities.includes(label));
       });
     }
 
@@ -1110,9 +1106,9 @@ async function saveSettings() {
       price:   { min: parseInt(document.getElementById('priceMin').value),
                  max: parseInt(document.getElementById('priceMax').value) },
       propertyTypes: Array.from(document.querySelectorAll('#propTypeGroup .checked'))
-                         .map(el => el.textContent.replace('✓ ','').trim()),
+                         .map(function(el){ return el.textContent.trim(); }),
       amenities: Array.from(document.querySelectorAll('#amenitiesGroup .checked'))
-                      .map(el => el.textContent.replace('✓ ','').trim())
+                      .map(function(el){ return el.textContent.trim(); })
     }
   };
 
