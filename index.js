@@ -95,6 +95,22 @@ app.post('/api/scan', async (req, res) => {
   }
 });
 
+// GET debug — מה הסריקה מחזירה לפני פילטר
+app.get('/api/debug-scan', async (req, res) => {
+  try {
+    const config = loadConfig();
+    const { filters, sources } = config;
+    const scrapers = [];
+    if (sources.yad2)     scrapers.push(yad2Scraper.scrape(filters).then(r => ({ source: 'יד2',    count: r.length, sample: r.slice(0,2) })));
+    if (sources.madlan)   scrapers.push(madlanScraper.scrape(filters).then(r => ({ source: 'מדלן',  count: r.length, sample: r.slice(0,2) })));
+    if (sources.telegram) scrapers.push(telegramScraper.scrape(sources).then(r => ({ source: 'טלגרם', count: r.length, sample: r.slice(0,2) })));
+    const results = await Promise.allSettled(scrapers);
+    res.json(results.map(r => r.status === 'fulfilled' ? r.value : { error: r.reason?.message }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST שליחת דיג'סט ידנית (לבדיקה)
 app.post('/api/send-digest', async (req, res) => {
   try {
