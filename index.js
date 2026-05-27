@@ -127,18 +127,27 @@ app.get('/api/raw-test', async (req, res) => {
   const cityCode = '5000';
   const results = {};
 
-  // test yad2 gw API
+  // test yad2 HTML scraping
   try {
-    const url = `https://gw.yad2.co.il/feed-search/realestate/${dealType}?city=${cityCode}&rooms=${filters.rooms.min}-${filters.rooms.max}&price=${filters.price.min}-${filters.price.max}&page=1`;
+    const params = new URLSearchParams({ city: cityCode, rooms: `${filters.rooms.min}-${filters.rooms.max}`, price: `${filters.price.min}-${filters.price.max}` });
+    const url = `https://www.yad2.co.il/realestate/${dealType}?${params}`;
     const r = await axios.get(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json', 'Origin': 'https://www.yad2.co.il', 'Referer': 'https://www.yad2.co.il/', 'mobile-app': 'false' },
-      timeout: 15000
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36', 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'Accept-Language': 'he-IL,he;q=0.9', 'Referer': 'https://www.yad2.co.il/' },
+      timeout: 20000
     });
-    const keys = Object.keys(r.data || {});
-    const feedItems = r.data?.data?.feed?.feed_items || r.data?.feed?.feed_items || r.data?.feed_items || [];
-    results.yad2 = { status: r.status, topKeys: keys, feedItemsCount: feedItems.length, preview: JSON.stringify(r.data).slice(0, 300) };
+    const cheerio = require('cheerio');
+    const $ = cheerio.load(r.data);
+    const nextDataText = $('#__NEXT_DATA__').text();
+    if (nextDataText) {
+      const pp = JSON.parse(nextDataText)?.props?.pageProps || {};
+      const ppKeys = Object.keys(pp);
+      const feedItems = pp?.initialState?.feed?.feed_items || pp?.initialData?.feed?.feed_items || pp?.data?.feed?.feed_items || pp?.listings || [];
+      results.yad2 = { status: r.status, hasNextData: true, pagePropsKeys: ppKeys, feedItemsCount: feedItems.length, sampleKeys: feedItems[0] ? Object.keys(feedItems[0]) : [] };
+    } else {
+      results.yad2 = { status: r.status, hasNextData: false, bodyPreview: r.data.slice(0, 200) };
+    }
   } catch (e) {
-    results.yad2 = { error: e.message, status: e.response?.status, preview: JSON.stringify(e.response?.data || '').slice(0, 300) };
+    results.yad2 = { error: e.message, status: e.response?.status };
   }
 
   // test madlan graphql
