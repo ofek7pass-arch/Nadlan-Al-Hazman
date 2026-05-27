@@ -12,12 +12,19 @@ const { isNew, save, getUnnotified, markNotified, getRecent } = require('./db/da
 const whatsapp = require('./notifiers/whatsapp');
 const email    = require('./notifiers/email');
 
-const CONFIG_PATH = path.join(__dirname, 'config.json');
+const DEFAULT_CONFIG_PATH = path.join(__dirname, 'config.json');
+const DATA_DIR = path.join(__dirname, 'data');
+const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 
 function loadConfig() {
-  return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  // data/config.json (Volume) קיים → השתמש בו; אחרת → ברירת מחדל
+  if (fs.existsSync(CONFIG_PATH)) {
+    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  }
+  return JSON.parse(fs.readFileSync(DEFAULT_CONFIG_PATH, 'utf8'));
 }
 function saveConfig(data) {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(data, null, 2));
 }
 
