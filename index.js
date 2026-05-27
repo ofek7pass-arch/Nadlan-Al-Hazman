@@ -118,6 +118,57 @@ app.get('/api/debug-scan', async (req, res) => {
   }
 });
 
+// GET raw HTTP test — מה בדיוק מגיע מהשרתים (לאבחון)
+app.get('/api/raw-test', async (req, res) => {
+  const axios = require('axios');
+  const config = loadConfig();
+  const { filters } = config;
+  const dealType = filters.dealType === 'buy' ? 'rent' : 'rent';
+  const cityCode = '5000';
+  const results = {};
+
+  // test yad2 gw API
+  try {
+    const url = `https://gw.yad2.co.il/feed-search/realestate/${dealType}?city=${cityCode}&rooms=${filters.rooms.min}-${filters.rooms.max}&price=${filters.price.min}-${filters.price.max}&page=1`;
+    const r = await axios.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json', 'Origin': 'https://www.yad2.co.il', 'Referer': 'https://www.yad2.co.il/', 'mobile-app': 'false' },
+      timeout: 15000
+    });
+    const keys = Object.keys(r.data || {});
+    const feedItems = r.data?.data?.feed?.feed_items || r.data?.feed?.feed_items || r.data?.feed_items || [];
+    results.yad2 = { status: r.status, topKeys: keys, feedItemsCount: feedItems.length, preview: JSON.stringify(r.data).slice(0, 300) };
+  } catch (e) {
+    results.yad2 = { error: e.message, status: e.response?.status, preview: JSON.stringify(e.response?.data || '').slice(0, 300) };
+  }
+
+  // test madlan graphql
+  try {
+    const r = await axios.post('https://www.madlan.co.il/api/graphql',
+      { query: '{ __typename }' },
+      { headers: { 'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json', 'Origin': 'https://www.madlan.co.il' }, timeout: 15000 }
+    );
+    results.madlan_gql = { status: r.status, preview: JSON.stringify(r.data).slice(0, 300) };
+  } catch (e) {
+    results.madlan_gql = { error: e.message, status: e.response?.status, preview: JSON.stringify(e.response?.data || '').slice(0, 200) };
+  }
+
+  // test madlan HTML
+  try {
+    const r = await axios.get(`https://www.madlan.co.il/for-rent/תל-אביב-יפו`, {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'he-IL,he;q=0.9' }, timeout: 15000
+    });
+    const cheerio = require('cheerio');
+    const $ = cheerio.load(r.data);
+    const hasNextData = !!$('#__NEXT_DATA__').text();
+    const pp = hasNextData ? Object.keys(JSON.parse($('#__NEXT_DATA__').text())?.props?.pageProps || {}) : [];
+    results.madlan_html = { status: r.status, hasNextData, pagePropsKeys: pp };
+  } catch (e) {
+    results.madlan_html = { error: e.message, status: e.response?.status };
+  }
+
+  res.json(results);
+});
+
 // POST שליחת דיג'סט ידנית (לבדיקה)
 app.post('/api/send-digest', async (req, res) => {
   try {
