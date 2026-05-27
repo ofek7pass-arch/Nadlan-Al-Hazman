@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ["python3", "gcc", "gnumake"]
+nixPkgs = ["python3", "gcc", "gnumake", "chromium", "nss", "nssmdns"]
 
 [phases.install]
-cmds = ["npm ci --omit=dev"]
+cmds = ["npm install --omit=dev"]
 
 [start]
 cmd = "node index.js"

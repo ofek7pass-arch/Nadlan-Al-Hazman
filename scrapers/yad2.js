@@ -1,4 +1,5 @@
-const axios = require('axios');
+const axios   = require('axios');
+const cheerio = require('cheerio');
 
 const CITY_CODES = {
   'תל אביב': '5000', 'ירושלים': '3000', 'חיפה': '4000', 'באר שבע': '70',
@@ -13,40 +14,56 @@ const CITY_CODES = {
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Accept': 'application/json, text/plain, */*',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
   'Accept-Language': 'he-IL,he;q=0.9,en;q=0.8',
-  'Origin': 'https://www.yad2.co.il',
+  'Accept-Encoding': 'gzip, deflate, br',
   'Referer': 'https://www.yad2.co.il/',
-  'mobile-app': 'false',
+  'Cache-Control': 'max-age=0',
 };
 
 async function scrape(filters) {
-  const dealType = filters.dealType === 'buy' ? 'forsale' : 'rent';
-  const cityCode = CITY_CODES[filters.cityName] || '5000';
+  const dealType   = filters.dealType === 'buy' ? 'forsale' : 'rent';
+  const cityCode   = CITY_CODES[filters.cityName] || '5000';
 
   const params = new URLSearchParams({
-    city: cityCode,
-    rooms: `${filters.rooms.min}-${filters.rooms.max}`,
-    price: `${filters.price.min}-${filters.price.max}`,
-    squareMeter: `${filters.sizeSqm?.min || 0}-${filters.sizeSqm?.max || 300}`,
-    page: 1,
+    city:         cityCode,
+    rooms:        `${filters.rooms.min}-${filters.rooms.max}`,
+    price:        `${filters.price.min}-${filters.price.max}`,
+    squareMeter:  `${filters.sizeSqm?.min || 0}-${filters.sizeSqm?.max || 300}`,
   });
 
-  const url = `https://gw.yad2.co.il/feed-search/realestate/${dealType}?${params}`;
+  const url = `https://www.yad2.co.il/realestate/${dealType}?${params}`;
   console.log(`[yad2] GET ${url}`);
 
   try {
     const { data, status } = await axios.get(url, { headers: HEADERS, timeout: 20000 });
-    console.log(`[yad2] HTTP ${status}`);
+    console.log(`[yad2] HTTP ${status}, ${data.length} תווים`);
+
+    const $ = cheerio.load(data);
+    const nextDataText = $('#__NEXT_DATA__').text();
+
+    if (!nextDataText) {
+      console.error('[yad2] אין __NEXT_DATA__ — כנראה חסום או עמוד שגיאה');
+      return [];
+    }
+
+    const nextData = JSON.parse(nextDataText);
+    const pp = nextData?.props?.pageProps || {};
 
     const feedItems =
-      data?.data?.feed?.feed_items ||
-      data?.feed?.feed_items ||
-      data?.feed_items ||
+      pp?.initialState?.feed?.feed_items ||
+      pp?.initialData?.feed?.feed_items ||
+      pp?.data?.feed?.feed_items ||
+      pp?.listings ||
       [];
 
-    const ads = feedItems.filter(item => item.type === 'ad' || item.orderId);
+    const ads = feedItems.filter(item => item.type === 'ad' || item.orderId || item.id);
     console.log(`[yad2] ${feedItems.length} פריטים, ${ads.length} מודעות`);
+
+    if (!ads.length && feedItems.length === 0) {
+      const ppKeys = Object.keys(pp);
+      console.warn('[yad2] feed_items ריק. מפתחות pageProps:', ppKeys.join(', '));
+    }
 
     return ads.map(item => ({
       id:          `yad2_${item.id || item.orderId}`,
