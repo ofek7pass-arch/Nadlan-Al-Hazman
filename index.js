@@ -5,6 +5,7 @@ const fs      = require('fs');
 const path    = require('path');
 
 const yad2Scraper     = require('./scrapers/yad2');
+const madlanScraper   = require('./scrapers/madlan');
 const telegramScraper = require('./scrapers/telegram');
 const { applyFilters } = require('./filters/filter');
 const { isNew, save, getUnnotified, markNotified, getRecent } = require('./db/database');
@@ -28,6 +29,7 @@ async function runScan() {
 
   const scrapers = [];
   if (sources.yad2)    scrapers.push(yad2Scraper.scrape(filters));
+  if (sources.madlan)  scrapers.push(madlanScraper.scrape(filters));
   if (sources.telegram) scrapers.push(telegramScraper.scrape(sources));
 
   const results = (await Promise.allSettled(scrapers))
@@ -104,8 +106,8 @@ app.post('/api/send-digest', async (req, res) => {
 });
 
 // ── SCHEDULER ────────────────────────────────────────────────
-// סריקה כל 30 דקות
-cron.schedule('*/30 * * * *', () => {
+// סריקה כל 10 דקות
+cron.schedule('*/10 * * * *', () => {
   runScan().catch(err => console.error('[cron scan]', err.message));
 });
 

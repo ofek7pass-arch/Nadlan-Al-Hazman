@@ -907,72 +907,51 @@ function showToast(id) {
 /* ════════════════════════════════════
    RESULTS — CARD CAROUSEL
 ════════════════════════════════════ */
-var apartments = [
-  {
-    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    emoji: '🏢',
-    address: 'רחוב הרצל 12, תל אביב',
-    details: '4 חדרים | 95 מ"ר | קומה 3 | חניה ✓ | מרפסת ✓',
-    price: '6,500 ₪ לחודש',
-    source: 'יד2',
-    sourceClass: 'tag-yad2',
-    desc: 'דירה מרווחת ומוארת בלב תל אביב, שיפוץ מלא ב-2022. נוף פתוח, קרוב לכל מוסדות החינוך, קניון ובתי קפה.',
-    time: 'לפני 3 שעות'
-  },
-  {
-    gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    emoji: '🌳',
-    address: 'שדרות בן גוריון 5, רמת גן',
-    details: '3.5 חדרים | 80 מ"ר | קומה 2 | מרפסת ✓',
-    price: '5,800 ₪ לחודש',
-    source: 'מדלן',
-    sourceClass: 'tag-madlan',
-    desc: 'דירה שקטה בשדרה ירוקה, קרובה לפארק הלאומי. בניין טיפוח, שכנים נעימים. כניסה מיידית.',
-    time: 'לפני 7 שעות'
-  },
-  {
-    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    emoji: '🏡',
-    address: 'רחוב ויצמן 33, גבעתיים',
-    details: '5 חדרים | 120 מ"ר | קומה 4 | ממ"ד ✓ | חניה ✓ | מרפסת ✓',
-    price: '8,200 ₪ לחודש',
-    source: 'טלגרם',
-    sourceClass: 'tag-tg',
-    desc: 'דירת 5 חדרים פנורמית עם נוף לגוש דן, מרפסת גדולה, ממ"ד, 2 חניות. בניין יוקרתי עם לובי ומעלית.',
-    time: 'לפני 1 שעה'
-  },
-  {
-    gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-    emoji: '🏘️',
-    address: 'רחוב אלנבי 88, תל אביב',
-    details: '3 חדרים | 72 מ"ר | קומה 1 | מעלית ✓',
-    price: '5,200 ₪ לחודש',
-    source: 'יד2',
-    sourceClass: 'tag-yad2',
-    desc: 'דירה חמודה ואינטימית בלב הרובע ההיסטורי, מרחק הליכה מהים. מותאמת לזוג או יחיד. לא כשר.',
-    time: 'לפני 12 שעות'
-  }
-];
-
+var apartments = [];
 var currentApt = 0;
 
+var GRADIENTS = [
+  'linear-gradient(135deg,#667eea,#764ba2)',
+  'linear-gradient(135deg,#f093fb,#f5576c)',
+  'linear-gradient(135deg,#4facfe,#00f2fe)',
+  'linear-gradient(135deg,#43e97b,#38f9d7)',
+  'linear-gradient(135deg,#fa709a,#fee140)',
+  'linear-gradient(135deg,#a18cd1,#fbc2eb)'
+];
+
 function renderApt(idx) {
-  var a = apartments[idx];
   var wrapper = document.getElementById('aptCardWrapper');
+  if (!apartments.length) {
+    wrapper.innerHTML =
+      '<div style="text-align:center;padding:60px 20px;color:#64748b;">' +
+        '<div style="font-size:48px;margin-bottom:16px;">🔍</div>' +
+        '<div style="font-size:18px;font-weight:600;margin-bottom:8px;">אין תוצאות עדיין</div>' +
+        '<div style="font-size:14px;">לחץ "סרוק עכשיו" כדי לחפש דירות</div>' +
+      '</div>';
+    document.getElementById('counter').textContent = '0 תוצאות';
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    return;
+  }
+  var a = apartments[idx];
+  var imgHtml = a.imageUrl
+    ? '<img src="' + a.imageUrl + '" style="width:100%;height:200px;object-fit:cover;" onerror="this.parentElement.style.background=\'' + GRADIENTS[idx % GRADIENTS.length] + '\';this.remove()">'
+    : '<div class="apt-image" style="background:' + GRADIENTS[idx % GRADIENTS.length] + '">🏠</div>';
+
   wrapper.innerHTML =
     '<div class="apt-card">' +
-      '<div class="apt-image" style="background:' + a.gradient + '">' + a.emoji + '</div>' +
+      imgHtml +
       '<div class="apt-body">' +
         '<div class="apt-top">' +
-          '<div class="apt-address">' + a.address + '</div>' +
+          '<div class="apt-address">' + (a.address || 'כתובת לא ידועה') + '</div>' +
           '<span class="source-tag ' + a.sourceClass + '">' + a.source + '</span>' +
         '</div>' +
         '<div class="apt-details">' + a.details + '</div>' +
         '<div class="apt-price">' + a.price + '</div>' +
-        '<div class="apt-desc">' + a.desc + '</div>' +
+        '<div class="apt-desc">' + (a.desc || '') + '</div>' +
         '<div class="apt-footer">' +
-          '<a class="apt-link" href="#">עבור למודעה &#x2190;</a>' +
-          '<span class="apt-time">זמן פרסום: ' + a.time + '</span>' +
+          '<a class="apt-link" href="' + (a.url || '#') + '" target="_blank">עבור למודעה &#x2190;</a>' +
+          '<span class="apt-time">' + a.time + '</span>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -987,7 +966,7 @@ function navigate(dir) {
   renderApt(currentApt);
 }
 
-// init
+// init — empty state
 renderApt(0);
 
 /* ════════════════════════════════════
@@ -1021,6 +1000,24 @@ async function loadSettings() {
     if (f.sizeSqm)  setSlider('sizeMin',   'sizeMax',   f.sizeSqm.min,  f.sizeSqm.max);
     if (f.rooms)    setSlider('roomsMin',   'roomsMax',  f.rooms.min,    f.rooms.max);
     if (f.price)    setSlider('priceMin',   'priceMax',  f.price.min,    f.price.max);
+
+    // שחזור סוג נכס
+    if (f.propertyTypes) {
+      document.querySelectorAll('#propTypeGroup .checkbox-pill').forEach(function(pill) {
+        var label = pill.textContent.replace('✓ ','').trim();
+        if (f.propertyTypes.includes(label)) pill.classList.add('checked');
+        else pill.classList.remove('checked');
+      });
+    }
+
+    // שחזור משתני נוחות
+    if (f.amenities) {
+      document.querySelectorAll('#amenitiesGroup .checkbox-pill').forEach(function(pill) {
+        var label = pill.textContent.replace('✓ ','').trim();
+        if (f.amenities.includes(label)) pill.classList.add('checked');
+        else pill.classList.remove('checked');
+      });
+    }
 
     // טלגרם channels
     var channels = (s.telegramChannels || []).join(', ');
@@ -1078,7 +1075,7 @@ async function loadResults() {
   try {
     var res = await fetch('/api/results');
     var data = await res.json();
-    if (!data.length) return;
+    if (!data.length) { renderApt(0); return; }
 
     apartments = data.map(function(apt) {
       var gradients = [

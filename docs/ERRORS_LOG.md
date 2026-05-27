@@ -19,7 +19,19 @@ error message here
 
 ## שגיאות פתורות
 
-*(יתווספו בזמן הפיתוח)*
+### 27.05.2026 — ReferenceError: File is not defined
+**תיאור:** האפליקציה קרסה ב-Railway מיד בהפעלה
+**סביבה:** Railway (Deploy)
+**שגיאה מדויקת:**
+```
+ReferenceError: File is not defined
+at /app/node_modules/undici/lib/web/webidl/index.js:537:48
+```
+**גורם:** Node.js 18 לא תומך ב-`File` כ-global — axios v1.7+ משתמש ב-undici שדורש Node 20
+**פתרון:** הוספת `.node-version` עם ערך `20` + עדכון `engines` ב-package.json ל-`>=20.0.0`
+**מניעה בעתיד:** תמיד לציין Node 20+ בפרויקטים חדשים עם axios מודרני
+
+---
 
 ---
 
