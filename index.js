@@ -123,7 +123,7 @@ app.get('/api/debug-scan', async (req, res) => {
 
 // GET בדיקת Puppeteer מהירה
 app.get('/api/chrome-check', async (req, res) => {
-  const { launchBrowser } = require('./scrapers/puppeteerHelper');
+  const { launchBrowser, CHROMIUM_PATH } = require('./scrapers/puppeteerHelper');
   let launched = false, title = null, err = null;
   try {
     const browser = await launchBrowser();
@@ -133,7 +133,7 @@ app.get('/api/chrome-check', async (req, res) => {
     title = await page.title();
     await browser.close();
   } catch (e) { err = e.message; }
-  res.json({ launched, title, error: err });
+  res.json({ CHROMIUM_PATH, launched, title, error: err });
 });
 
 // GET raw HTTP test — מה בדיוק מגיע מהשרתים (לאבחון)

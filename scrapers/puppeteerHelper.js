@@ -1,6 +1,10 @@
+const CHROMIUM_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROMIUM_PATH || '/usr/bin/chromium';
+
 async function launchBrowser() {
-  const puppeteer = require('puppeteer');
+  const puppeteer = require('puppeteer-core');
+  console.log(`[puppeteer] launching chromium: ${CHROMIUM_PATH}`);
   return puppeteer.launch({
+    executablePath: CHROMIUM_PATH,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -28,4 +32,4 @@ async function newStealthPage(browser) {
   return page;
 }
 
-module.exports = { launchBrowser, newStealthPage };
+module.exports = { launchBrowser, newStealthPage, CHROMIUM_PATH };
