@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python3", "gcc", "gnumake", "chromium", "nss", "nssmdns"]
+nixPkgs = ["python3", "gcc", "gnumake", "nss", "nspr", "alsa-lib", "atk", "cups", "dbus", "expat", "fontconfig", "glib", "gtk3", "libdrm", "libxkbcommon", "mesa", "pango", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb"]
 
 [phases.install]
 cmds = ["npm install --omit=dev"]

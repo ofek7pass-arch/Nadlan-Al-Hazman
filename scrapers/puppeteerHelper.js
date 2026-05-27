@@ -1,28 +1,6 @@
-const { execSync } = require('child_process');
-
-function getChromiumPath() {
-  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
-  try {
-    const result = execSync(
-      'which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome-stable 2>/dev/null || which google-chrome 2>/dev/null',
-      { encoding: 'utf8' }
-    ).trim().split('\n')[0];
-    if (result) return result;
-  } catch {}
-  // nixpacks nix store path fallback
-  try {
-    const storePath = execSync('ls /nix/store | grep chromium | head -1', { encoding: 'utf8' }).trim();
-    if (storePath) return `/nix/store/${storePath}/bin/chromium`;
-  } catch {}
-  return '/usr/bin/chromium';
-}
-
 async function launchBrowser() {
-  const puppeteer = require('puppeteer-core');
-  const executablePath = getChromiumPath();
-  console.log(`[puppeteer] chromium path: ${executablePath}`);
+  const puppeteer = require('puppeteer');
   return puppeteer.launch({
-    executablePath,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -50,4 +28,4 @@ async function newStealthPage(browser) {
   return page;
 }
 
-module.exports = { launchBrowser, newStealthPage, getChromiumPath };
+module.exports = { launchBrowser, newStealthPage };
