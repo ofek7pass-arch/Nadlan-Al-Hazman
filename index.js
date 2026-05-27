@@ -121,6 +121,17 @@ app.get('/api/debug-scan', async (req, res) => {
   }
 });
 
+// GET בדיקת yad2 עם ת"א — להוכחה שהסקרייפינג עובד
+app.get('/api/test-tlv', async (req, res) => {
+  const yad2 = require('./scrapers/yad2');
+  try {
+    const items = await yad2.scrape({ dealType: 'rent', cityName: 'תל אביב', rooms: { min: 2, max: 5 }, price: { min: 3000, max: 10000 }, sizeSqm: { min: 0, max: 300 } });
+    res.json({ count: items.length, sample: items.slice(0, 2) });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
 // GET בדיקת Puppeteer מהירה
 app.get('/api/chrome-check', async (req, res) => {
   const { launchBrowser, CHROMIUM_PATH } = require('./scrapers/puppeteerHelper');
