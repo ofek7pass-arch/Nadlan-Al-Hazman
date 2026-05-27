@@ -108,9 +108,12 @@ app.get('/api/debug-scan', async (req, res) => {
     const config = loadConfig();
     const { filters, sources } = config;
     const scrapers = [];
-    if (sources.yad2)     scrapers.push(yad2Scraper.scrape(filters).then(r => ({ source: 'יד2',    count: r.length, sample: r.slice(0,2) })));
-    if (sources.madlan)   scrapers.push(madlanScraper.scrape(filters).then(r => ({ source: 'מדלן',  count: r.length, sample: r.slice(0,2) })));
-    if (sources.telegram) scrapers.push(telegramScraper.scrape(sources).then(r => ({ source: 'טלגרם', count: r.length, sample: r.slice(0,2) })));
+    const wrap = (name, p) => p
+      .then(r => ({ source: name, count: r.length, sample: r.slice(0, 2) }))
+      .catch(e => ({ source: name, count: 0, error: e.message }));
+    if (sources.yad2)     scrapers.push(wrap('יד2',   yad2Scraper.scrape(filters)));
+    if (sources.madlan)   scrapers.push(wrap('מדלן',  madlanScraper.scrape(filters)));
+    if (sources.telegram) scrapers.push(wrap('טלגרם', telegramScraper.scrape(sources)));
     const results = await Promise.allSettled(scrapers);
     res.json(results.map(r => r.status === 'fulfilled' ? r.value : { error: r.reason?.message }));
   } catch (err) {
