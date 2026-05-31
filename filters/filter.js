@@ -38,6 +38,7 @@ function hasAmenity(apt, amenity) {
     JSON.stringify(raw.additional_info_items || []),
     JSON.stringify(raw.additionalInfo || []),
     JSON.stringify(raw.features || []),
+    JSON.stringify(raw.tags || []),
   ].join(' ').toLowerCase();
 
   return keywords.some(k => searchIn.includes(k.toLowerCase()));

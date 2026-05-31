@@ -1,0 +1,7 @@
+{
+  "name": "nadlan-local-scraper",
+  "version": "1.0.0",
+  "dependencies": {
+    "puppeteer-core": "^22.0.0"
+  }
+}

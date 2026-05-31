@@ -29,25 +29,27 @@ function saveConfig(data) {
 }
 
 // ── CORE SCAN ────────────────────────────────────────────────
+// יד2 ומדלן נסרקים ע"י הסקריפט המקומי (IP ישראלי) ונכנסים דרך /api/ingest.
+// כאן רץ רק טלגרם — קל ועובד מ-Railway.
 async function runScan() {
   const config = loadConfig();
   const { filters, sources } = config;
-  console.log('[scan] מתחיל סריקה...');
+  console.log('[scan] מתחיל סריקת טלגרם...');
 
-  const scrapers = [];
-  if (sources.yad2)    scrapers.push(yad2Scraper.scrape(filters));
-  if (sources.madlan)  scrapers.push(madlanScraper.scrape(filters));
-  if (sources.telegram) scrapers.push(telegramScraper.scrape(sources));
-
-  const results = (await Promise.allSettled(scrapers))
-    .filter(r => r.status === 'fulfilled')
-    .flatMap(r => r.value);
+  let results = [];
+  if (sources.telegram) {
+    try {
+      results = await telegramScraper.scrape(sources);
+    } catch (err) {
+      console.error('[scan] טלגרם נכשל:', err.message);
+    }
+  }
 
   const filtered = applyFilters(results, filters);
   const newOnes  = filtered.filter(apt => isNew(apt.id));
 
   newOnes.forEach(apt => save(apt));
-  console.log(`[scan] נמצאו ${results.length} תוצאות → ${filtered.length} אחרי פילטר → ${newOnes.length} חדשות`);
+  console.log(`[scan] טלגרם: ${results.length} תוצאות → ${filtered.length} אחרי פילטר → ${newOnes.length} חדשות`);
   return newOnes;
 }
 
