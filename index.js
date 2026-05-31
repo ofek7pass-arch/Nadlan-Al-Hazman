@@ -121,90 +121,21 @@ app.get('/api/debug-scan', async (req, res) => {
   }
 });
 
-// GET בדיקת yad2 עם ת"א — להוכחה שהסקרייפינג עובד
-app.get('/api/test-tlv', async (req, res) => {
-  const yad2 = require('./scrapers/yad2');
+// POST קבלת תוצאות מהסקריפט המקומי (יד2)
+app.post('/api/ingest', (req, res) => {
   try {
-    const items = await yad2.scrape({ dealType: 'rent', cityName: 'תל אביב', rooms: { min: 2, max: 5 }, price: { min: 3000, max: 10000 }, sizeSqm: { min: 0, max: 300 } });
-    res.json({ count: items.length, sample: items.slice(0, 2) });
-  } catch (e) {
-    res.json({ error: e.message });
+    const apartments = req.body;
+    if (!Array.isArray(apartments)) return res.status(400).json({ error: 'expected array' });
+    const config = loadConfig();
+    const { applyFilters } = require('./filters/filter');
+    const filtered = applyFilters(apartments, config.filters);
+    const newOnes = filtered.filter(apt => isNew(apt.id));
+    newOnes.forEach(apt => save(apt));
+    console.log(`[ingest] קיבלנו ${apartments.length} → ${filtered.length} פילטר → ${newOnes.length} חדשות`);
+    res.json({ received: apartments.length, filtered: filtered.length, saved: newOnes.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-});
-
-// GET בדיקת Puppeteer מהירה
-app.get('/api/chrome-check', async (req, res) => {
-  const { launchBrowser, CHROMIUM_PATH } = require('./scrapers/puppeteerHelper');
-  let launched = false, title = null, err = null;
-  try {
-    const browser = await launchBrowser();
-    launched = true;
-    const page = await browser.newPage();
-    await page.goto('about:blank', { timeout: 10000 });
-    title = await page.title();
-    await browser.close();
-  } catch (e) { err = e.message; }
-  res.json({ CHROMIUM_PATH, launched, title, error: err });
-});
-
-// GET raw HTTP test — מה בדיוק מגיע מהשרתים (לאבחון)
-app.get('/api/raw-test', async (req, res) => {
-  const axios = require('axios');
-  const config = loadConfig();
-  const { filters } = config;
-  const dealType = filters.dealType === 'buy' ? 'rent' : 'rent';
-  const cityCode = '5000';
-  const results = {};
-
-  // test yad2 HTML scraping
-  try {
-    const params = new URLSearchParams({ city: cityCode, rooms: `${filters.rooms.min}-${filters.rooms.max}`, price: `${filters.price.min}-${filters.price.max}` });
-    const url = `https://www.yad2.co.il/realestate/${dealType}?${params}`;
-    const r = await axios.get(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36', 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'Accept-Language': 'he-IL,he;q=0.9', 'Referer': 'https://www.yad2.co.il/' },
-      timeout: 20000
-    });
-    const cheerio = require('cheerio');
-    const $ = cheerio.load(r.data);
-    const nextDataText = $('#__NEXT_DATA__').text();
-    if (nextDataText) {
-      const pp = JSON.parse(nextDataText)?.props?.pageProps || {};
-      const ppKeys = Object.keys(pp);
-      const feedItems = pp?.initialState?.feed?.feed_items || pp?.initialData?.feed?.feed_items || pp?.data?.feed?.feed_items || pp?.listings || [];
-      results.yad2 = { status: r.status, hasNextData: true, pagePropsKeys: ppKeys, feedItemsCount: feedItems.length, sampleKeys: feedItems[0] ? Object.keys(feedItems[0]) : [] };
-    } else {
-      results.yad2 = { status: r.status, hasNextData: false, bodyPreview: r.data.slice(0, 200) };
-    }
-  } catch (e) {
-    results.yad2 = { error: e.message, status: e.response?.status };
-  }
-
-  // test madlan graphql
-  try {
-    const r = await axios.post('https://www.madlan.co.il/api/graphql',
-      { query: '{ __typename }' },
-      { headers: { 'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json', 'Origin': 'https://www.madlan.co.il' }, timeout: 15000 }
-    );
-    results.madlan_gql = { status: r.status, preview: JSON.stringify(r.data).slice(0, 300) };
-  } catch (e) {
-    results.madlan_gql = { error: e.message, status: e.response?.status, preview: JSON.stringify(e.response?.data || '').slice(0, 200) };
-  }
-
-  // test madlan HTML
-  try {
-    const r = await axios.get(`https://www.madlan.co.il/for-rent/תל-אביב-יפו`, {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'he-IL,he;q=0.9' }, timeout: 15000
-    });
-    const cheerio = require('cheerio');
-    const $ = cheerio.load(r.data);
-    const hasNextData = !!$('#__NEXT_DATA__').text();
-    const pp = hasNextData ? Object.keys(JSON.parse($('#__NEXT_DATA__').text())?.props?.pageProps || {}) : [];
-    results.madlan_html = { status: r.status, hasNextData, pagePropsKeys: pp };
-  } catch (e) {
-    results.madlan_html = { error: e.message, status: e.response?.status };
-  }
-
-  res.json(results);
 });
 
 // POST שליחת דיג'סט ידנית (לבדיקה)

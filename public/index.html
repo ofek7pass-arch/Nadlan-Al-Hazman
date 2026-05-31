@@ -1093,8 +1093,8 @@ async function saveSettings() {
       yad2: true,
       madlan: true,
       telegram: true,
-      telegramChannels: document.querySelector('.tg-input').value
-        .split(',').map(s => s.trim()).filter(Boolean)
+      telegramChannels: Array.from(document.querySelectorAll('#extraSources [id^="src-"]'))
+        .map(function(el){ return '@' + el.id.replace('src-',''); })
     },
     filters: {
       dealType: dealType === 'buy' ? 'buy' : 'rent',
