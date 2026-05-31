@@ -154,9 +154,11 @@ async function main() {
   const apartments = [];
 
   // ── יד2 (Puppeteer + Chrome) ──
+  // headless:'new' (קרוב לדפדפן אמיתי) + פרופיל קבוע ששומר clearance cookies בין הרצות
   const browser = await puppeteer.launch({
     executablePath: CHROME,
-    headless: true,
+    headless: 'new',
+    userDataDir: path.join(__dirname, 'chrome-profile'),
     args: ['--no-sandbox', '--disable-blink-features=AutomationControlled'],
   });
   try {
