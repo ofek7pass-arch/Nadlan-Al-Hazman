@@ -19,11 +19,36 @@ query Search($q: SearchBulletinQueryInput!) {
     total
     bulletins {
       id price beds area address dealType buildingType propertyType description
+      parking
+      extendedAmenities { name }
       structuredAddress { city streetName streetNumber text }
       images { imageUrl }
     }
   }
 }`;
+
+// מיפוי slugs של מדלן ↔ שמות נוחויות בעברית (שתואמים ל-AMENITY_KEYWORDS בפילטר)
+const AMENITY_SLUG_HEB = {
+  'elevator':      'מעלית',
+  'parking':       'חניה',
+  'garage':        'חניה',
+  'secure-room':   'ממ"ד',
+  'mamak':         'ממ"ד',
+  'miklat':        'ממ"ד',
+  'balcony-areas': 'מרפסת',
+  'garden-areas':  'חצר',
+  'warehouse-areas': 'מחסן',
+};
+
+function buildTags(bulletin) {
+  const tags = [];
+  if (bulletin.parking) tags.push({ name: 'חניה' });
+  (bulletin.extendedAmenities || []).forEach(a => {
+    const heb = AMENITY_SLUG_HEB[a.name];
+    if (heb && !tags.some(t => t.name === heb)) tags.push({ name: heb });
+  });
+  return tags;
+}
 
 function gqlPage(filters, offset) {
   return new Promise((resolve, reject) => {

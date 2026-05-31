@@ -6,6 +6,11 @@ const PROPERTY_TYPE_KEYWORDS = {
   'דופלקס':     ['duplex', 'דופלקס'],
   "קוטג'":      ['cottage', 'קוטג'],
   'דירת גן':    ['garden', 'garden_apartment', 'דירת גן'],
+  // סוגים נוספים — מזוהים כדי שיידחו אם המשתמש לא בחר בהם:
+  'יחידת דיור': ['יחידת דיור'],
+  'פנטהאוז':    ['פנטהאוז', 'penthouse'],
+  'מרתף':       ['מרתף', 'פרטר'],
+  'סטודיו':     ['סטודיו', 'לופט'],
 };
 
 // מיפוי נוחויות — מילות מפתח בטקסט
@@ -17,17 +22,27 @@ const AMENITY_KEYWORDS = {
   'חניה':   ['חניה', 'חנייה', 'parking'],
 };
 
-function getPropertyType(apt) {
+// בודק אם הנכס תואם לאחד מסוגי הנכס שהמשתמש בחר.
+// מטפל בערכים מאוחדים כמו "בית פרטי/ קוטג'" — שייכלל גם תחת "קוטג'".
+function matchesPropertyType(apt, selectedTypes) {
   const raw = apt.raw || {};
-  const rawType = (raw.property_group || raw.propertyType || raw.propertyGroup || '').toString().toLowerCase();
-  const desc = (apt.description || '').toLowerCase();
+  const haystack = (
+    (raw.property_group || raw.propertyType || raw.propertyGroup || '') + ' ' + (apt.description || '')
+  ).toLowerCase().trim();
 
-  for (const [heb, keywords] of Object.entries(PROPERTY_TYPE_KEYWORDS)) {
-    if (keywords.some(k => rawType.includes(k.toLowerCase()) || desc.includes(k.toLowerCase()))) {
-      return heb;
-    }
-  }
-  return null;
+  if (!haystack) return true; // אין מידע על סוג הנכס — לא דוחים
+
+  const typeMatches = (typeName) => {
+    const keywords = PROPERTY_TYPE_KEYWORDS[typeName] || [typeName];
+    return keywords.some(k => haystack.includes(k.toLowerCase()));
+  };
+
+  // אם אחד מהסוגים שביקש המשתמש מופיע — עובר
+  if (selectedTypes.some(typeMatches)) return true;
+
+  // אם זוהה סוג ידוע אחר (שלא ביקש) — דוחים. אם לא זוהה דבר — לא דוחים.
+  const anyKnownType = Object.keys(PROPERTY_TYPE_KEYWORDS).some(typeMatches);
+  return !anyKnownType;
 }
 
 function hasAmenity(apt, amenity) {
@@ -58,17 +73,15 @@ function matches(apt, filters) {
     if (apt.size_sqm < filters.sizeSqm.min || apt.size_sqm > filters.sizeSqm.max) return false;
   }
 
-  // ── סוג נכס — אם המשתמש בחר, חייב להתאים (אם הצלחנו לנתח)
+  // ── סוג נכס — חובה (אם נבחר)
   if (filters.propertyTypes && filters.propertyTypes.length > 0) {
-    const aptType = getPropertyType(apt);
-    if (aptType && !filters.propertyTypes.includes(aptType)) return false;
+    if (!matchesPropertyType(apt, filters.propertyTypes)) return false;
   }
 
-  // ── נוחויות — כל נוחות שסומנה חייבת להופיע
+  // ── נוחויות — בונוס בלבד, לא תנאי מחייב.
+  // מסמנים אילו נוחויות מבוקשות זוהו (לתצוגה/דירוג), אך לא דוחים על היעדרן.
   if (filters.amenities && filters.amenities.length > 0) {
-    for (const amenity of filters.amenities) {
-      if (!hasAmenity(apt, amenity)) return false;
-    }
+    apt.matchedAmenities = filters.amenities.filter(amenity => hasAmenity(apt, amenity));
   }
 
   // ── עיר — אם יש כתובת, חייבת להכיל את שם העיר הבסיסית

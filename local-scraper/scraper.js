@@ -84,20 +84,13 @@ function extractApartments(feed) {
   }));
 }
 
-async function scrapeAllPages(browser, filters) {
-  const allApts = [];
-  let totalPages = 1;
-
-  for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-    const url = buildUrl(filters, pageNum);
-    console.log(`[yad2] עמוד ${pageNum}/${totalPages}: ${url}`);
-
+// טוען עמוד יד2 בודד; מנסה שוב אם ShieldSquare חוסם (אין __NEXT_DATA__)
+async function loadPage(browser, url, attempts = 3) {
+  for (let i = 1; i <= attempts; i++) {
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
-
     try {
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-
       const result = await page.evaluate(() => {
         const nd = document.getElementById('__NEXT_DATA__');
         if (!nd) return null;
@@ -105,23 +98,40 @@ async function scrapeAllPages(browser, filters) {
         const pp = d?.props?.pageProps || {};
         return { feed: pp.feed || {}, pagination: pp.feed?.pagination };
       });
-
-      if (!result) {
-        console.warn(`[yad2] עמוד ${pageNum}: אין __NEXT_DATA__`);
-        break;
-      }
-
-      if (pageNum === 1 && result.pagination?.totalPages) {
-        totalPages = Math.min(result.pagination.totalPages, 10); // מקסימום 10 עמודים
-        console.log(`[yad2] סה"כ עמודים: ${totalPages}, מודעות: ${result.pagination.total}`);
-      }
-
-      const apts = extractApartments(result.feed);
-      allApts.push(...apts);
-      console.log(`[yad2] עמוד ${pageNum}: ${apts.length} מודעות`);
+      if (result) return result;
+      console.warn(`[yad2] ניסיון ${i}/${attempts}: ShieldSquare challenge, מנסה שוב...`);
+    } catch (e) {
+      console.warn(`[yad2] ניסיון ${i}/${attempts} נכשל: ${e.message}`);
     } finally {
       await page.close();
     }
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  return null;
+}
+
+async function scrapeAllPages(browser, filters) {
+  const allApts = [];
+  let totalPages = 1;
+
+  for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+    const url = buildUrl(filters, pageNum);
+    console.log(`[yad2] עמוד ${pageNum}/${totalPages}`);
+
+    const result = await loadPage(browser, url);
+    if (!result) {
+      console.warn(`[yad2] עמוד ${pageNum}: נכשל אחרי כל הניסיונות`);
+      break;
+    }
+
+    if (pageNum === 1 && result.pagination?.totalPages) {
+      totalPages = Math.min(result.pagination.totalPages, 10);
+      console.log(`[yad2] סה"כ עמודים: ${totalPages}, מודעות: ${result.pagination.total}`);
+    }
+
+    const apts = extractApartments(result.feed);
+    allApts.push(...apts);
+    console.log(`[yad2] עמוד ${pageNum}: ${apts.length} מודעות`);
   }
 
   return allApts;
