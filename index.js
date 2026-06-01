@@ -150,6 +150,7 @@ app.post('/api/ingest', (req, res) => {
 app.get('/api/notif-check', (req, res) => {
   const config = loadConfig();
   res.json({
+    version: 'self-test-1',
     env: {
       GREEN_API_INSTANCE_ID: !!process.env.GREEN_API_INSTANCE_ID,
       GREEN_API_TOKEN:       !!process.env.GREEN_API_TOKEN,
