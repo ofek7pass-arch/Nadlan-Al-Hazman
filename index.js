@@ -167,8 +167,17 @@ app.get('/api/notif-check', (req, res) => {
 // POST שליחת דיג'סט ידנית (לבדיקה)
 app.post('/api/send-digest', async (req, res) => {
   try {
+    // ?self=1 — בדיקה: מייל ל-ofek7pass בלבד, ללא WhatsApp, בלי לסמן כנשלח
+    if (req.query.self === '1') {
+      const config = loadConfig();
+      const unnotified = getUnnotified();
+      if (!unnotified.length) return res.json({ ok: true, sent: 0, note: 'אין דירות לשליחה' });
+      const testConfig = { ...config, notifications: { ...config.notifications, emails: ['ofek7pass@gmail.com'], phones: [] } };
+      await email.sendDigest(unnotified, testConfig);
+      return res.json({ ok: true, mode: 'self-test', emailedTo: 'ofek7pass@gmail.com', apartments: unnotified.length });
+    }
     await sendDailyDigest();
-    res.json({ ok: true });
+    res.json({ ok: true, mode: 'full' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
