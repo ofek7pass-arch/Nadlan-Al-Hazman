@@ -159,12 +159,12 @@ app.get('/api/notif-check', async (req, res) => {
       const r = await axios.get(`https://api.green-api.com/waInstance${iid}/getStateInstance/${tok}`, { timeout: 10000 });
       whatsappState = r.data?.stateInstance || JSON.stringify(r.data);
     } catch (e) {
-      whatsappState = `ERROR: ${e.code || e.message}`;
+      whatsappState = `ERROR status=${e.response?.status} body=${JSON.stringify(e.response?.data) || e.code} instancePrefix=${String(iid).slice(0,4)} tokenLen=${String(tok).length}`;
     }
   }
 
   res.json({
-    version: 'self-test-3',
+    version: 'self-test-4',
     env: {
       GREEN_API_INSTANCE_ID: !!iid,
       GREEN_API_TOKEN:       !!tok,
