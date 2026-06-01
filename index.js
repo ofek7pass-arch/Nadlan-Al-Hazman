@@ -173,7 +173,7 @@ app.get('/api/notif-check', async (req, res) => {
   }
 
   res.json({
-    version: 'self-test-5',
+    version: 'self-test-6',
     env: {
       GREEN_API_INSTANCE_ID: !!iid,
       GREEN_API_TOKEN:       !!tok,
@@ -192,29 +192,22 @@ app.get('/api/notif-check', async (req, res) => {
 // POST שליחת דיג'סט ידנית (לבדיקה)
 app.post('/api/send-digest', async (req, res) => {
   try {
-    // ?self=1 — בדיקה: מייל ל-ofek7pass בלבד, מחזיר שגיאת SMTP אמיתית אם יש
+    // ?self=1 — בדיקת Brevo: מייל ל-ofek7pass בלבד, מחזיר שגיאה אמיתית אם יש
     if (req.query.self === '1') {
-      const nodemailer = require('nodemailer');
-      const result = { mode: 'self-test', emailUser: process.env.EMAIL_USER || null, passLen: (process.env.EMAIL_PASS || '').length };
+      const axios = require('axios');
+      if (!process.env.BREVO_API_KEY) {
+        return res.json({ ok: false, mode: 'self-test', error: 'BREVO_API_KEY חסר ב-Railway' });
+      }
       try {
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-        });
-        await transporter.verify(); // בודק חיבור/אימות לפני שליחה
-        result.verified = true;
-        const info = await transporter.sendMail({
-          from: `"סוכן נדל\"ן" <${process.env.EMAIL_USER}>`,
-          to: 'ofek7pass@gmail.com',
+        const r = await axios.post('https://api.brevo.com/v3/smtp/email', {
+          sender: { name: 'סוכן נדל"ן', email: process.env.EMAIL_USER || 'ofek7pass@gmail.com' },
+          to: [{ email: 'ofek7pass@gmail.com' }],
           subject: '🏠 בדיקת סוכן נדל"ן',
-          text: 'אם קיבלת מייל זה — מנגנון המייל עובד ✓',
-        });
-        result.messageId = info.messageId;
-        result.accepted = info.accepted;
-        result.rejected = info.rejected;
-        return res.json({ ok: true, ...result });
+          htmlContent: '<div dir="rtl">אם קיבלת מייל זה — מנגנון המייל (Brevo) עובד ✓</div>',
+        }, { headers: { 'api-key': process.env.BREVO_API_KEY, 'content-type': 'application/json' }, timeout: 15000 });
+        return res.json({ ok: true, mode: 'self-test', messageId: r.data?.messageId });
       } catch (e) {
-        return res.json({ ok: false, ...result, error: e.message, code: e.code, command: e.command });
+        return res.json({ ok: false, mode: 'self-test', status: e.response?.status, error: JSON.stringify(e.response?.data) || e.message });
       }
     }
     await sendDailyDigest();

@@ -1,4 +1,9 @@
 const nodemailer = require('nodemailer');
+const axios = require('axios');
+
+// כתובת השולח (מאומתת ב-Brevo). ברירת מחדל: EMAIL_USER
+const SENDER_EMAIL = process.env.EMAIL_USER || 'ofek7pass@gmail.com';
+const SENDER_NAME  = 'סוכן נדל"ן';
 
 function createTransport() {
   return nodemailer.createTransport({
@@ -8,6 +13,23 @@ function createTransport() {
       pass: process.env.EMAIL_PASS
     }
   });
+}
+
+// שליחה דרך Brevo HTTP API — עובד מ-Railway (SMTP חסום שם)
+async function sendViaBrevo(emails, subject, html) {
+  const results = await Promise.allSettled(emails.map(to =>
+    axios.post('https://api.brevo.com/v3/smtp/email', {
+      sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }, {
+      headers: { 'api-key': process.env.BREVO_API_KEY, 'content-type': 'application/json' },
+      timeout: 15000,
+    }).then(() => console.log(`[email/brevo] נשלח ל-${to}`))
+  ));
+  const failed = results.filter(r => r.status === 'rejected');
+  failed.forEach(r => console.error('[email/brevo] שגיאה:', r.reason?.response?.data || r.reason?.message));
 }
 
 function buildHtml(apartments) {
@@ -42,22 +64,32 @@ function buildHtml(apartments) {
 
 async function sendDigest(apartments, config) {
   if (!apartments.length) return;
+  const emails = config.notifications?.emails || [];
+  if (!emails.length) return;
+
+  const subject = `🏠 ${apartments.length} דירות חדשות מתאימות לחיפוש שלך`;
+  const html = buildHtml(apartments);
+
+  // עדיפות: Brevo HTTP API (עובד מ-Railway). אחרת: SMTP (מקומי בלבד).
+  if (process.env.BREVO_API_KEY) {
+    await sendViaBrevo(emails, subject, html);
+    return;
+  }
+
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn('[email] EMAIL_USER או EMAIL_PASS חסרים ב-.env');
+    console.warn('[email] אין BREVO_API_KEY וגם אין EMAIL_USER/EMAIL_PASS — לא נשלח מייל');
     return;
   }
 
   const transporter = createTransport();
-  const emails = config.notifications?.emails || [];
-
   await Promise.all(emails.map(to =>
     transporter.sendMail({
-      from: `"סוכן נדל"ן" <${process.env.EMAIL_USER}>`,
+      from: `"${SENDER_NAME}" <${process.env.EMAIL_USER}>`,
       to,
-      subject: `🏠 ${apartments.length} דירות חדשות מתאימות לחיפוש שלך`,
-      html: buildHtml(apartments)
-    }).then(() => console.log(`[email] נשלח ל-${to}`))
-      .catch(err => console.error(`[email] שגיאה ל-${to}:`, err.message))
+      subject,
+      html,
+    }).then(() => console.log(`[email/smtp] נשלח ל-${to}`))
+      .catch(err => console.error(`[email/smtp] שגיאה ל-${to}:`, err.message))
   ));
 }
 
