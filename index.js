@@ -150,7 +150,7 @@ app.post('/api/ingest', (req, res) => {
 app.get('/api/notif-check', (req, res) => {
   const config = loadConfig();
   res.json({
-    version: 'self-test-1',
+    version: 'self-test-2',
     env: {
       GREEN_API_INSTANCE_ID: !!process.env.GREEN_API_INSTANCE_ID,
       GREEN_API_TOKEN:       !!process.env.GREEN_API_TOKEN,
@@ -168,14 +168,30 @@ app.get('/api/notif-check', (req, res) => {
 // POST שליחת דיג'סט ידנית (לבדיקה)
 app.post('/api/send-digest', async (req, res) => {
   try {
-    // ?self=1 — בדיקה: מייל ל-ofek7pass בלבד, ללא WhatsApp, בלי לסמן כנשלח
+    // ?self=1 — בדיקה: מייל ל-ofek7pass בלבד, מחזיר שגיאת SMTP אמיתית אם יש
     if (req.query.self === '1') {
-      const config = loadConfig();
-      const unnotified = getUnnotified();
-      if (!unnotified.length) return res.json({ ok: true, sent: 0, note: 'אין דירות לשליחה' });
-      const testConfig = { ...config, notifications: { ...config.notifications, emails: ['ofek7pass@gmail.com'], phones: [] } };
-      await email.sendDigest(unnotified, testConfig);
-      return res.json({ ok: true, mode: 'self-test', emailedTo: 'ofek7pass@gmail.com', apartments: unnotified.length });
+      const nodemailer = require('nodemailer');
+      const result = { mode: 'self-test', emailUser: process.env.EMAIL_USER || null, passLen: (process.env.EMAIL_PASS || '').length };
+      try {
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+        });
+        await transporter.verify(); // בודק חיבור/אימות לפני שליחה
+        result.verified = true;
+        const info = await transporter.sendMail({
+          from: `"סוכן נדל\"ן" <${process.env.EMAIL_USER}>`,
+          to: 'ofek7pass@gmail.com',
+          subject: '🏠 בדיקת סוכן נדל"ן',
+          text: 'אם קיבלת מייל זה — מנגנון המייל עובד ✓',
+        });
+        result.messageId = info.messageId;
+        result.accepted = info.accepted;
+        result.rejected = info.rejected;
+        return res.json({ ok: true, ...result });
+      } catch (e) {
+        return res.json({ ok: false, ...result, error: e.message, code: e.code, command: e.command });
+      }
     }
     await sendDailyDigest();
     res.json({ ok: true, mode: 'full' });
