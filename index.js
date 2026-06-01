@@ -17,11 +17,17 @@ const DATA_DIR = path.join(__dirname, 'data');
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 
 function loadConfig() {
-  // data/config.json (Volume) קיים → השתמש בו; אחרת → ברירת מחדל
-  if (fs.existsSync(CONFIG_PATH)) {
-    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-  }
-  return JSON.parse(fs.readFileSync(DEFAULT_CONFIG_PATH, 'utf8'));
+  const defaults = JSON.parse(fs.readFileSync(DEFAULT_CONFIG_PATH, 'utf8'));
+  if (!fs.existsSync(CONFIG_PATH)) return defaults;
+
+  // ממזגים מעל ברירת המחדל — כך notifications (נמענים) לעולם לא נעלמים
+  // גם אם הממשק שמר רק sources+filters.
+  const saved = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  return {
+    ...defaults,
+    ...saved,
+    notifications: { ...defaults.notifications, ...(saved.notifications || {}) },
+  };
 }
 function saveConfig(data) {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -138,6 +144,24 @@ app.post('/api/ingest', (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// GET בדיקת תצורת התראות — בוליאני בלבד, ללא ערכים, ללא שליחה
+app.get('/api/notif-check', (req, res) => {
+  const config = loadConfig();
+  res.json({
+    env: {
+      GREEN_API_INSTANCE_ID: !!process.env.GREEN_API_INSTANCE_ID,
+      GREEN_API_TOKEN:       !!process.env.GREEN_API_TOKEN,
+      EMAIL_USER:            !!process.env.EMAIL_USER,
+      EMAIL_PASS:            !!process.env.EMAIL_PASS,
+    },
+    recipients: {
+      phones: config.notifications?.phones?.length || 0,
+      emails: config.notifications?.emails?.length || 0,
+    },
+    unnotifiedCount: getUnnotified().length,
+  });
 });
 
 // POST שליחת דיג'סט ידנית (לבדיקה)
