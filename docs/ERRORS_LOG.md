@@ -54,10 +54,34 @@ at /app/node_modules/undici/lib/web/webidl/index.js:537:48
 
 ---
 
+### 10.06.2026 — מייל מ-Railway נכשל (ETIMEDOUT)
+**שגיאה:** nodemailer/Gmail → `ETIMEDOUT` על `CONN`
+**גורם:** Railway חוסם פורטי SMTP יוצאים (25/465/587)
+**פתרון:** מעבר ל-**Brevo HTTP API** (`BREVO_API_KEY`, POST ל-api.brevo.com/v3/smtp/email)
+**מניעה:** ב-Railway — לעולם לא SMTP. תמיד HTTP email API.
+
+---
+
+### 10.06.2026 — WhatsApp (Green API) נכשל מ-Railway: 403 → 404
+**שגיאות לפי הסדר:** `403 nginx` (host ישן `api.green-api.com` חוסם Railway) → תוקן ל-`7107.api.greenapi.com` → `404` (מזהה אינסטנס היה 11 תווים במקום 10!) → תוקן → `authorized`
+**גורם משולב:** (א) דומיין ישן חוסם IP של Railway (ב) תו עודף ב-`GREEN_API_INSTANCE_ID`
+**פתרון:** host = `https://{prefix}.api.greenapi.com` + `.trim()` על env + לוודא אורך (instance=10, token=50)
+**מניעה:** 403=host/IP · 401=טוקן · 404=instance. תמיד trim + בדיקת אורך.
+
+---
+
+### 10.06.2026 — markNotified סימן "נשלח" גם בכישלון
+**גורם:** `sendDailyDigest` קרא ל-markNotified אחרי Promise.all ללא בדיקת הצלחה
+**פתרון:** ה-notifiers מחזירים boolean; מסמנים רק אם ערוץ אחד הצליח
+
+---
+
 ## לקחים כלליים
 
 1. **Chromium על Railway** — תמיד Dockerfile (Debian), לא nixpacks
-2. **יד2/מדלן HTML scraping** — לא עובד מ-IP זר ללא headless browser
-3. **gw.yad2.co.il** — ה-API endpoint שניסינו לא קיים (404)
-4. **madlan.co.il/api/graphql** — לא קיים (404)
-5. **Madlan** — אין `__NEXT_DATA__`, נטעין ב-JS, דורש headless browser
+2. **יד2/מדלן/Green API** — חוסמים IP אמריקאי של Railway → להריץ מ-IP ישראלי (מקומי)
+3. **מייל ב-Railway** — SMTP חסום → Brevo HTTP API
+4. **Green API host** — `{prefix}.api.greenapi.com` (בלי מקף), לא api.green-api.com
+5. **env ב-Railway** — תמיד `.trim()` + בדיקת אורך (הדבקה גוררת תווים עודפים)
+6. **Madlan** — GraphQL `api3` עובד מכל IP; אין `__NEXT_DATA__` באתר
+7. **סיכום מלא חוצה-פרויקטים:** `Ofek-GitHub/CLAUDE.md` → "לקחים חוצה-פרויקטים"

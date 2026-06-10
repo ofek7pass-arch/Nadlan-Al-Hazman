@@ -1,48 +1,43 @@
-# נקודת המשך — מאיפה ממשיכים בסשן הבא
+# נקודת המשך / סטטוס פרויקט
 
-_עדכון אחרון: 31.05.2026 (סוף סשן)_
+_עדכון אחרון: 10.06.2026 — **הפרויקט עובד מקצה לקצה ✅**_
 
 ---
 
-## TL;DR — איפה אנחנו
-
-הצינור עובד מקצה לקצה. **דירה אמיתית בגדרה כבר נשמרה ומוצגת** ב-`/api/results`
-(אורן 4, 6,600₪, 3.5 חד', מדלן).
+## TL;DR — הכל עובד
 
 | רכיב | סטטוס |
 |------|-------|
 | טלגרם persistence | ✅ תוקן |
 | מדלן | ✅ עובד מלא (GraphQL) |
+| יד2 | ✅ עובד (ShieldSquare מתקרר מעצמו; retry + IP ישראלי) |
 | פילטר (נוחויות=בונוס) | ✅ עובד |
 | צינור מקומי→Railway | ✅ עובד |
 | Task Scheduler | ✅ רץ כל 30 דק' |
-| **יד2** | ⚠️ חסום זמנית (ShieldSquare) — **המשתמש יחליט** מה לעשות |
-| **התראות WhatsApp+מייל** | ❓ קוד קיים, **לא נבדק end-to-end** — לטפל בסשן הבא |
+| **מייל** | ✅ עובד דרך **Brevo HTTP API** (SMTP חסום ב-Railway) |
+| **WhatsApp** | ✅ עובד מ-Railway (Green API, host `greenapi.com`) |
+| **צ'ק-בוקס נמענים (אופק/ים)** | ✅ רק מסומנים מקבלים התראות |
+
+### התראות — הפתרונות הסופיים (היו הכי קשים)
+- **מייל:** Railway חוסם SMTP → עברנו ל-**Brevo HTTP API**. env: `BREVO_API_KEY`. שולח מ-ofek7pass@gmail.com (מאומת ב-Brevo).
+- **WhatsApp:** Green API חוסם דומיין ישן מ-Railway → host חייב להיות `https://7107.api.greenapi.com` (בלי מקף, prefix לפי האינסטנס). env: `GREEN_API_INSTANCE_ID`=`7107617295` (10 ספרות!), `GREEN_API_TOKEN`. הקוד עושה `.trim()`.
+- **באג שתוקן:** דירות סומנו "נשלח" גם בכישלון שליחה → עכשיו מסמן רק אם ערוץ אחד הצליח.
+- **נמענים:** `config.notifications.recipients[]` = `{name, email, phone, enabled}`. ה-notifiers שולחים רק ל-enabled. UI: צ'ק-בוקסים בעמוד הראשי.
 
 ---
 
-## 🔴 שתי החלטות/משימות פתוחות לסשן הבא
+## ✅ מה שהיה פתוח — נפתר (10.06.2026)
 
-### 1. יד2 — ShieldSquare (המשתמש צריך להחליט)
-הקוד **הוכח עובד** (שלף 23 מודעות בגדרה מספר פעמים היום). אבל ShieldSquare
-חוסם אקטיבית כרגע כי הרצנו ~12 בדיקות בשעה. המערכת מתדרדרת בחן (מדלן+טלגרם ממשיכים).
+### 1. יד2 — ShieldSquare → נפתר
+ה-cooldown עבד: יום אחרי, יד2 חזר לשלוף 23 מודעות ללא חסימה. הקוד כולל retry x3 + `headless:'new'` + פרופיל קבוע. בקצב רגיל (כל 30 דק') אין חסימה.
 
-**3 אפשרויות שהוצגו — המשתמש יבחר:**
-1. **Cooldown (מומלץ)** — להפסיק בדיקות, לתת ל-Task Scheduler לרוץ בקצב רגיל. ShieldSquare משחרר אחרי שעות. לבדוק שוב מחר.
-2. **Non-headless** — חלון Chrome אמיתי נפתח לרגע בכל סריקה. הצלחה גבוהה, חלון מציק.
-3. **פרופיל Chrome אמיתי** — `userDataDir` לפרופיל האמיתי (עוגיות אמיתיות). דורש ש-Chrome סגור בזמן הסריקה.
+### 2. התראות WhatsApp + מייל → נפתרו (ראה "הפתרונות הסופיים" למעלה)
+שניהם עובדים end-to-end. אומתו בשליחות בדיקה אמיתיות (מייל ל-ofek7pass, WhatsApp ל-0507226589 מ-Railway).
 
-מצב נוכחי בקוד: `headless:'new'` + פרופיל קבוע ב-`local-scraper/chrome-profile/` + retry x3.
-
-### 2. התראות WhatsApp + מייל (לדון בסשן הבא — המשתמש ביקש)
-**סטטוס לא ידוע — לא נבדק end-to-end בסשן זה.**
-- קוד קיים: `notifiers/whatsapp.js` (Green API), `notifiers/email.js` (nodemailer)
-- `sendDailyDigest()` ב-index.js רץ ב-cron 19:30 (Asia/Jerusalem), ויש endpoint ידני `POST /api/send-digest`
-- **לבדוק בסשן הבא:**
-  - האם משתני הסביבה מוגדרים ב-Railway: `GREEN_API_INSTANCE_ID` (=7107617295), `GREEN_API_TOKEN`, `EMAIL_USER`, `EMAIL_PASS`
-  - להריץ `POST /api/send-digest` ידנית ולוודא שהתקבלה הודעה
-  - נמענים: מיילים ofek7pass@gmail.com, yamfrish@gmail.com | טלפונים 0507226589, 0545207739
-  - לוודא שהנמענים נשמרים ב-config (notifications.phones/emails)
+### endpoints לבדיקה (נשארו בקוד)
+- `GET /api/notif-check` — מצב env + Green API state + נמענים (ללא שליחה)
+- `POST /api/send-digest?self=1` — בדיקת מייל לאופק בלבד
+- `POST /api/send-digest?wa=1` — בדיקת WhatsApp לאופק בלבד מ-Railway
 
 ---
 
