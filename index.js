@@ -171,7 +171,7 @@ app.get('/api/notif-check', async (req, res) => {
   }
 
   res.json({
-    version: 'self-test-9',
+    version: 'self-test-10',
     env: {
       GREEN_API_INSTANCE_ID: !!iid,
       GREEN_API_TOKEN:       !!tok,
@@ -204,6 +204,11 @@ app.post('/api/send-digest', async (req, res) => {
       } catch (e) {
         return res.json({ ok: false, mode: 'self-test', status: e.response?.status, error: JSON.stringify(e.response?.data) || e.message });
       }
+    }
+    // ?wa=1 — בדיקת WhatsApp מ-Railway: הודעה למספר של אופק בלבד
+    if (req.query.wa === '1') {
+      const ok = await whatsapp.sendMessage('972507226589', '🏠 בדיקת סוכן נדל"ן מ-Railway — אם קיבלת, WhatsApp עובד ✓');
+      return res.json({ ok, mode: 'wa-self-test', sentTo: '0507226589' });
     }
     await sendDailyDigest();
     res.json({ ok: true, mode: 'full' });
