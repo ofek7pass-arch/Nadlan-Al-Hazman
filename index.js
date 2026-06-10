@@ -161,7 +161,7 @@ app.get('/api/notif-check', async (req, res) => {
   let whatsappState = null;
   const iid = process.env.GREEN_API_INSTANCE_ID, tok = process.env.GREEN_API_TOKEN;
   if (iid && tok) {
-    const host = process.env.GREEN_API_URL || `https://${String(iid).slice(0, 4)}.api.greenapi.com`;
+    const host = process.env.GREEN_API_URL || 'https://7107.api.greenapi.com';
     try {
       const r = await axios.get(`${host}/waInstance${iid}/getStateInstance/${tok}`, { timeout: 10000 });
       whatsappState = `${host} → ${r.data?.stateInstance || JSON.stringify(r.data)}`;
@@ -171,7 +171,7 @@ app.get('/api/notif-check', async (req, res) => {
   }
 
   res.json({
-    version: 'self-test-8',
+    version: 'self-test-9',
     env: {
       GREEN_API_INSTANCE_ID: !!iid,
       GREEN_API_TOKEN:       !!tok,
