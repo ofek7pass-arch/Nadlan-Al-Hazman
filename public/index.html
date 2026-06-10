@@ -723,6 +723,16 @@
         </div>
       </div>
 
+      <!-- 9. מקבלי התראות -->
+      <div class="form-group">
+        <label class="form-label">מקבלי התראות (WhatsApp + מייל)</label>
+        <div class="checkbox-group" id="recipientsGroup">
+          <div class="checkbox-pill" data-recipient="אופק" onclick="togglePill(this)">אופק</div>
+          <div class="checkbox-pill" data-recipient="ים" onclick="togglePill(this)">ים</div>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-top:6px;">רק מי שמסומן יקבל את ההתראות.</p>
+      </div>
+
       <button class="save-btn" onclick="saveSettings()">שמור הגדרות</button>
     </div>
   </div>
@@ -1076,6 +1086,15 @@ async function loadSettings() {
 
     // טלגרם channels — הצגת קארדים
     (s.telegramChannels || []).forEach(function(ch) { addSourceCard(ch); });
+
+    // שחזור מקבלי התראות
+    var recipients = (cfg.notifications && cfg.notifications.recipients) || [];
+    document.querySelectorAll('#recipientsGroup .checkbox-pill').forEach(function(pill) {
+      var name = pill.getAttribute('data-recipient');
+      var rec = recipients.find(function(r){ return r.name === name; });
+      // ברירת מחדל: מסומן אם אין מידע, או לפי enabled
+      pill.classList.toggle('checked', rec ? rec.enabled !== false : true);
+    });
   } catch(e) {
     console.log('loadSettings (offline mode):', e.message);
   }
@@ -1111,6 +1130,20 @@ async function saveSettings() {
                       .map(function(el){ return el.textContent.trim(); })
     }
   };
+
+  // מקבלי התראות — משכים את הקונפיג הקיים ומעדכנים רק את ה-enabled (לשמור email/phone)
+  var enabledNames = Array.from(document.querySelectorAll('#recipientsGroup .checked'))
+                          .map(function(el){ return el.getAttribute('data-recipient'); });
+  try {
+    var cur = await (await fetch('/api/settings')).json();
+    var notif = cur.notifications || {};
+    if (Array.isArray(notif.recipients)) {
+      notif.recipients = notif.recipients.map(function(r){
+        return Object.assign({}, r, { enabled: enabledNames.indexOf(r.name) !== -1 });
+      });
+    }
+    cfg.notifications = notif;
+  } catch(e) {}
 
   try {
     await fetch('/api/settings', {

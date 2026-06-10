@@ -18,7 +18,9 @@
   },
   "notifications": {
     "dailyDigestTime": "19:30",
-    "phones": ["+9720507226589", "+9720545207739"],
-    "emails": ["ofek7pass@gmail.com", "yamfrish@gmail.com"]
+    "recipients": [
+      { "name": "אופק", "email": "ofek7pass@gmail.com", "phone": "+9720507226589", "enabled": true },
+      { "name": "ים",   "email": "yamfrish@gmail.com",  "phone": "+9720545207739", "enabled": true }
+    ]
   }
 }

@@ -68,11 +68,17 @@ async function sendDailyDigest() {
     return;
   }
   console.log(`[digest] שולח ${unnotified.length} דירות...`);
-  await Promise.all([
+  const [waOk, emailOk] = await Promise.all([
     whatsapp.sendDigest(unnotified, config),
     email.sendDigest(unnotified, config)
   ]);
-  markNotified(unnotified.map(a => a.id));
+  // מסמנים כנשלח רק אם לפחות ערוץ אחד הצליח — אחרת ננסה שוב בדיג'סט הבא
+  if (waOk || emailOk) {
+    markNotified(unnotified.map(a => a.id));
+    console.log(`[digest] סומן כנשלח (WhatsApp=${waOk}, מייל=${emailOk})`);
+  } else {
+    console.warn('[digest] שתי השליחות נכשלו — לא מסמן כנשלח, ננסה שוב');
+  }
 }
 
 // ── EXPRESS SERVER ────────────────────────────────────────────
@@ -165,7 +171,7 @@ app.get('/api/notif-check', async (req, res) => {
   }
 
   res.json({
-    version: 'self-test-7',
+    version: 'self-test-8',
     env: {
       GREEN_API_INSTANCE_ID: !!iid,
       GREEN_API_TOKEN:       !!tok,
@@ -173,10 +179,7 @@ app.get('/api/notif-check', async (req, res) => {
       EMAIL_PASS:            !!process.env.EMAIL_PASS,
     },
     whatsappState,
-    recipients: {
-      phones: config.notifications?.phones?.length || 0,
-      emails: config.notifications?.emails?.length || 0,
-    },
+    recipients: (config.notifications?.recipients || []).map(r => ({ name: r.name, enabled: r.enabled !== false, hasPhone: !!r.phone, hasEmail: !!r.email })),
     unnotifiedCount: getUnnotified().length,
   });
 });

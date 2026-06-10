@@ -30,6 +30,7 @@ async function sendViaBrevo(emails, subject, html) {
   ));
   const failed = results.filter(r => r.status === 'rejected');
   failed.forEach(r => console.error('[email/brevo] שגיאה:', r.reason?.response?.data || r.reason?.message));
+  return results.some(r => r.status === 'fulfilled');
 }
 
 function buildHtml(apartments) {
@@ -62,35 +63,45 @@ function buildHtml(apartments) {
   `;
 }
 
+// מחזיר מיילים של נמענים מסומנים (enabled). תומך גם במבנה הישן (emails[]).
+function enabledEmails(config) {
+  const n = config.notifications || {};
+  if (Array.isArray(n.recipients)) {
+    return n.recipients.filter(r => r.enabled !== false && r.email).map(r => r.email);
+  }
+  return n.emails || [];
+}
+
 async function sendDigest(apartments, config) {
-  if (!apartments.length) return;
-  const emails = config.notifications?.emails || [];
-  if (!emails.length) return;
+  if (!apartments.length) return false;
+  const emails = enabledEmails(config);
+  if (!emails.length) return false;
 
   const subject = `🏠 ${apartments.length} דירות חדשות מתאימות לחיפוש שלך`;
   const html = buildHtml(apartments);
 
   // עדיפות: Brevo HTTP API (עובד מ-Railway). אחרת: SMTP (מקומי בלבד).
   if (process.env.BREVO_API_KEY) {
-    await sendViaBrevo(emails, subject, html);
-    return;
+    return await sendViaBrevo(emails, subject, html);
   }
 
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     console.warn('[email] אין BREVO_API_KEY וגם אין EMAIL_USER/EMAIL_PASS — לא נשלח מייל');
-    return;
+    return false;
   }
 
   const transporter = createTransport();
-  await Promise.all(emails.map(to =>
+  const results = await Promise.allSettled(emails.map(to =>
     transporter.sendMail({
       from: `"${SENDER_NAME}" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html,
     }).then(() => console.log(`[email/smtp] נשלח ל-${to}`))
-      .catch(err => console.error(`[email/smtp] שגיאה ל-${to}:`, err.message))
   ));
+  results.filter(r => r.status === 'rejected')
+         .forEach(r => console.error('[email/smtp] שגיאה:', r.reason?.message));
+  return results.some(r => r.status === 'fulfilled');
 }
 
 module.exports = { sendDigest };

@@ -7,6 +7,15 @@ const API_TOKEN   = process.env.GREEN_API_TOKEN;
 const API_HOST    = process.env.GREEN_API_URL || `https://${String(INSTANCE_ID).slice(0, 4)}.api.greenapi.com`;
 const BASE_URL    = `${API_HOST}/waInstance${INSTANCE_ID}`;
 
+// מחזיר טלפונים של נמענים מסומנים (enabled). תומך גם במבנה הישן (phones[]).
+function enabledPhones(config) {
+  const n = config.notifications || {};
+  if (Array.isArray(n.recipients)) {
+    return n.recipients.filter(r => r.enabled !== false && r.phone).map(r => r.phone);
+  }
+  return n.phones || [];
+}
+
 // המרת מספר ישראלי לפורמט chatId של Green API
 function toChatId(phone) {
   const digits = phone.replace(/\D/g, '');
@@ -25,8 +34,10 @@ async function sendMessage(phone, text) {
       message: text
     });
     console.log(`[whatsapp] נשלח ל-${phone}`);
+    return true;
   } catch (err) {
-    console.error(`[whatsapp] שגיאה בשליחה ל-${phone}:`, err.message);
+    console.error(`[whatsapp] שגיאה בשליחה ל-${phone}:`, err.response?.status || err.message);
+    return false;
   }
 }
 
@@ -45,8 +56,10 @@ async function sendDigest(apartments, config) {
     `נמצאו *${apartments.length}* דירות מתאימות:\n\n` +
     lines.join('\n\n');
 
-  const phones = config.notifications?.phones || [];
-  await Promise.all(phones.map(phone => sendMessage(phone, text)));
+  const phones = enabledPhones(config);
+  if (!phones.length) return false;
+  const results = await Promise.all(phones.map(phone => sendMessage(phone, text)));
+  return results.some(Boolean);
 }
 
 module.exports = { sendDigest, sendMessage };
