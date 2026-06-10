@@ -159,19 +159,20 @@ app.get('/api/notif-check', async (req, res) => {
 
   // בדיקת חיבוריות Green API מ-Railway (HTTP, ללא שליחת הודעה)
   let whatsappState = null;
-  const iid = process.env.GREEN_API_INSTANCE_ID, tok = process.env.GREEN_API_TOKEN;
+  const rawIid = process.env.GREEN_API_INSTANCE_ID || '', rawTok = process.env.GREEN_API_TOKEN || '';
+  const iid = rawIid.trim(), tok = rawTok.trim();
   if (iid && tok) {
     const host = process.env.GREEN_API_URL || 'https://7107.api.greenapi.com';
     try {
       const r = await axios.get(`${host}/waInstance${iid}/getStateInstance/${tok}`, { timeout: 10000 });
       whatsappState = `${host} → ${r.data?.stateInstance || JSON.stringify(r.data)}`;
     } catch (e) {
-      whatsappState = `${host} → ERR ${e.response?.status || e.code}`;
+      whatsappState = `${host} → ERR ${e.response?.status || e.code} | iidLen=${iid.length}(raw${rawIid.length}) tokLen=${tok.length}(raw${rawTok.length})`;
     }
   }
 
   res.json({
-    version: 'self-test-10',
+    version: 'self-test-11',
     env: {
       GREEN_API_INSTANCE_ID: !!iid,
       GREEN_API_TOKEN:       !!tok,

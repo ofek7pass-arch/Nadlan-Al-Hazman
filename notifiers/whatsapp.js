@@ -1,7 +1,7 @@
 const axios = require('axios');
 
-const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID;
-const API_TOKEN   = process.env.GREEN_API_TOKEN;
+const INSTANCE_ID = (process.env.GREEN_API_INSTANCE_ID || '').trim();
+const API_TOKEN   = (process.env.GREEN_API_TOKEN || '').trim();
 // כתובת ה-host הספציפית לאינסטנס (greenapi.com — לא api.green-api.com שחסום מ-Railway).
 // כתובת קבועה ומוכחת (כמו הסוכן האישי). ניתן לעקוף עם GREEN_API_URL.
 const API_HOST    = process.env.GREEN_API_URL || 'https://7107.api.greenapi.com';
