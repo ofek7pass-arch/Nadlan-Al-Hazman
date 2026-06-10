@@ -2,7 +2,10 @@ const axios = require('axios');
 
 const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID;
 const API_TOKEN   = process.env.GREEN_API_TOKEN;
-const BASE_URL    = `https://api.green-api.com/waInstance${INSTANCE_ID}`;
+// כתובת ה-host הספציפית לאינסטנס (greenapi.com — לא api.green-api.com שחסום מ-Railway).
+// ברירת מחדל: נבנית מ-4 הספרות הראשונות של מזהה האינסטנס (כמו הסוכן הקיים).
+const API_HOST    = process.env.GREEN_API_URL || `https://${String(INSTANCE_ID).slice(0, 4)}.api.greenapi.com`;
+const BASE_URL    = `${API_HOST}/waInstance${INSTANCE_ID}`;
 
 // המרת מספר ישראלי לפורמט chatId של Green API
 function toChatId(phone) {

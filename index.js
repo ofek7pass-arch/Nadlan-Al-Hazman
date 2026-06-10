@@ -155,25 +155,17 @@ app.get('/api/notif-check', async (req, res) => {
   let whatsappState = null;
   const iid = process.env.GREEN_API_INSTANCE_ID, tok = process.env.GREEN_API_TOKEN;
   if (iid && tok) {
-    const prefix = String(iid).slice(0, 4);
-    const hosts = [
-      `https://${prefix}.api.green-api.com`,
-      `https://api.green-api.com`,
-    ];
-    const tries = [];
-    for (const host of hosts) {
-      try {
-        const r = await axios.get(`${host}/waInstance${iid}/getStateInstance/${tok}`, { timeout: 10000 });
-        tries.push(`${host} → ${r.data?.stateInstance || JSON.stringify(r.data)}`);
-      } catch (e) {
-        tries.push(`${host} → ERR ${e.response?.status || e.code}`);
-      }
+    const host = process.env.GREEN_API_URL || `https://${String(iid).slice(0, 4)}.api.greenapi.com`;
+    try {
+      const r = await axios.get(`${host}/waInstance${iid}/getStateInstance/${tok}`, { timeout: 10000 });
+      whatsappState = `${host} → ${r.data?.stateInstance || JSON.stringify(r.data)}`;
+    } catch (e) {
+      whatsappState = `${host} → ERR ${e.response?.status || e.code}`;
     }
-    whatsappState = tries.join(' | ');
   }
 
   res.json({
-    version: 'self-test-6',
+    version: 'self-test-7',
     env: {
       GREEN_API_INSTANCE_ID: !!iid,
       GREEN_API_TOKEN:       !!tok,
