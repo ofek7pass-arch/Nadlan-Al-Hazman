@@ -16,11 +16,13 @@ function enabledPhones(config) {
   return n.phones || [];
 }
 
-// המרת מספר ישראלי לפורמט chatId של Green API
+// המרת מספר ישראלי לפורמט chatId של Green API.
+// מטפל בכל הפורמטים: 0507226589 / +972507226589 / 9720507226589 (עם 0 עודף).
 function toChatId(phone) {
-  const digits = phone.replace(/\D/g, '');
-  const normalized = digits.startsWith('972') ? digits : '972' + digits.replace(/^0/, '');
-  return `${normalized}@c.us`;
+  let digits = String(phone).replace(/\D/g, '');
+  if (digits.startsWith('972')) digits = digits.slice(3); // הסרת קידומת מדינה
+  digits = digits.replace(/^0+/, '');                      // הסרת 0 מוביל (פורמט מקומי)
+  return `972${digits}@c.us`;
 }
 
 async function sendMessage(phone, text) {

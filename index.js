@@ -172,7 +172,7 @@ app.get('/api/notif-check', async (req, res) => {
   }
 
   res.json({
-    version: 'self-test-11',
+    version: 'self-test-12',
     env: {
       GREEN_API_INSTANCE_ID: !!iid,
       GREEN_API_TOKEN:       !!tok,
@@ -206,10 +206,10 @@ app.post('/api/send-digest', async (req, res) => {
         return res.json({ ok: false, mode: 'self-test', status: e.response?.status, error: JSON.stringify(e.response?.data) || e.message });
       }
     }
-    // ?wa=1 — בדיקת WhatsApp מ-Railway: הודעה למספר של אופק בלבד
+    // ?wa=1 — בדיקת WhatsApp מ-Railway: שולח לפורמט השמור האמיתי (בוחן את toChatId)
     if (req.query.wa === '1') {
-      const ok = await whatsapp.sendMessage('972507226589', '🏠 בדיקת סוכן נדל"ן מ-Railway — אם קיבלת, WhatsApp עובד ✓');
-      return res.json({ ok, mode: 'wa-self-test', sentTo: '0507226589' });
+      const ok = await whatsapp.sendMessage('+9720507226589', '🏠 בדיקת סוכן נדל"ן מ-Railway — אם קיבלת, WhatsApp עובד ✓');
+      return res.json({ ok, mode: 'wa-self-test', sentTo: '+9720507226589' });
     }
     await sendDailyDigest();
     res.json({ ok: true, mode: 'full' });
