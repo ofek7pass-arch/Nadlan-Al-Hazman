@@ -84,7 +84,7 @@ async function sendDailyDigest() {
 
 // ── EXPRESS SERVER ────────────────────────────────────────────
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '15mb' })); // מאות מודעות ברדיוס — חורג מ-100kb ברירת מחדל
 app.use(express.static(path.join(__dirname, 'public')));
 
 // GET הגדרות
