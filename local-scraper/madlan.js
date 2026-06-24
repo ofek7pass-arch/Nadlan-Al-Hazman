@@ -3,6 +3,7 @@
  * רץ מקומית עם IP ישראלי. מחזיר מערך דירות מנורמל.
  */
 const https = require('https');
+const { haversineKm, baseCoords } = require('./geo');
 
 const GQL_HEADERS = {
   'Content-Type':    'application/json',
@@ -20,6 +21,7 @@ query Search($q: SearchBulletinQueryInput!) {
     bulletins {
       id price beds area address dealType buildingType propertyType description
       parking
+      locationPoint { lat lng }
       extendedAmenities { name }
       structuredAddress { city streetName streetNumber text }
       images { imageUrl }
@@ -91,8 +93,21 @@ function isCity(bulletin, cityName) {
   return city === cityName || city.startsWith(cityName + ' ');
 }
 
+// בתוך הרדיוס סביב עיר הבסיס (אם יש קואורדינטות). אחרת fallback לשם עיר.
+function inRadius(bulletin, base, radiusKm) {
+  if (!base) return isCity(bulletin, base?.cityName);
+  const p = bulletin.locationPoint;
+  if (!p || p.lat == null || p.lng == null) return false;
+  return haversineKm(base.lat, base.lon, p.lat, p.lng) <= radiusKm;
+}
+
 async function scrape(filters) {
   const cityName = filters.cityName || '';
+  const radiusKm = filters.radiusKm || 0;
+  const base = baseCoords(cityName);
+  const useRadius = base && radiusKm > 0;
+  if (!useRadius) console.warn(`[madlan] אין רדיוס (base=${!!base}, radiusKm=${radiusKm}) — סינון לפי שם עיר`);
+
   let total = null, offset = 0;
   const matched = [];
 
@@ -112,12 +127,15 @@ async function scrape(filters) {
       console.log(`[madlan] סה"כ ארצי: ${total}`);
     }
 
-    const hits = page.bulletins.filter(b => b.dealType === 'unitRent' && isCity(b, cityName));
+    const hits = page.bulletins.filter(b =>
+      b.dealType === 'unitRent' &&
+      (useRadius ? inRadius(b, base, radiusKm) : isCity(b, cityName))
+    );
     matched.push(...hits);
     offset += 200;
   }
 
-  console.log(`[madlan] נמצאו ${matched.length} שכירות ב-${cityName}`);
+  console.log(`[madlan] נמצאו ${matched.length} שכירות ${useRadius ? `ברדיוס ${radiusKm} ק"מ מ-${cityName}` : `ב-${cityName}`}`);
 
   return matched.map(b => ({
     id:          `madlan_${b.id}`,

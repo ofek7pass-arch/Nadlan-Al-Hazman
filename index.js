@@ -8,7 +8,7 @@ const yad2Scraper     = require('./scrapers/yad2');
 const madlanScraper   = require('./scrapers/madlan');
 const telegramScraper = require('./scrapers/telegram');
 const { applyFilters } = require('./filters/filter');
-const { isNew, save, getUnnotified, markNotified, getRecent } = require('./db/database');
+const { isNew, save, getUnnotified, markNotified, getRecent, removeStaleBySources } = require('./db/database');
 const whatsapp = require('./notifiers/whatsapp');
 const email    = require('./notifiers/email');
 
@@ -135,18 +135,31 @@ app.get('/api/debug-scan', async (req, res) => {
   }
 });
 
-// POST קבלת תוצאות מהסקריפט המקומי (יד2)
+// POST קבלת תוצאות מהסקריפט המקומי (יד2 + מדלן)
+// תומך בשני פורמטים: מערך ישן, או { apartments, scannedSources }
 app.post('/api/ingest', (req, res) => {
   try {
-    const apartments = req.body;
+    const body = req.body;
+    const apartments = Array.isArray(body) ? body : (body.apartments || []);
+    const scannedSources = Array.isArray(body) ? [] : (body.scannedSources || []);
     if (!Array.isArray(apartments)) return res.status(400).json({ error: 'expected array' });
+
     const config = loadConfig();
     const { applyFilters } = require('./filters/filter');
     const filtered = applyFilters(apartments, config.filters);
-    const newOnes = filtered.filter(apt => isNew(apt.id));
-    newOnes.forEach(apt => save(apt));
-    console.log(`[ingest] קיבלנו ${apartments.length} → ${filtered.length} פילטר → ${newOnes.length} חדשות`);
-    res.json({ received: apartments.length, filtered: filtered.length, saved: newOnes.length });
+
+    // ספירת חדשות (לפני ה-upsert) — לדיווח
+    const newCount = filtered.filter(apt => isNew(apt.id)).length;
+
+    // upsert — שומר חדשות, מעדכן מחיר/פרטים + last_seen לקיימות
+    filtered.forEach(apt => save(apt));
+
+    // תיקוף: ממקורות שנסרקו בהצלחה — מחיקת מודעות שלא נראו בסריקה (נמחקו/יצאו מטווח)
+    const seenIds = filtered.map(a => a.id);
+    const removed = removeStaleBySources(scannedSources, seenIds);
+
+    console.log(`[ingest] קיבלנו ${apartments.length} → ${filtered.length} פילטר → ${newCount} חדשות, ${removed} הוסרו (מקורות: ${scannedSources.join(',') || '—'})`);
+    res.json({ received: apartments.length, filtered: filtered.length, saved: newCount, removed });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

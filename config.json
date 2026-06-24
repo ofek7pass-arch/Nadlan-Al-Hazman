@@ -7,14 +7,13 @@
   },
   "filters": {
     "dealType": "rent",
-    "cityName": "תל אביב",
-    "cityCode": "5000",
-    "radiusKm": 10,
-    "rooms": { "min": 2, "max": 5 },
-    "sizeSqm": { "min": 50, "max": 150 },
-    "price": { "min": 3000, "max": 7000 },
-    "propertyTypes": ["דירה"],
-    "amenities": []
+    "cityName": "גדרה",
+    "radiusKm": 25,
+    "rooms": { "min": 3, "max": 7 },
+    "sizeSqm": { "min": 80, "max": 200 },
+    "price": { "min": 3000, "max": 8000 },
+    "propertyTypes": ["דו משפחתי", "דופלקס", "קוטג'", "דירת גן"],
+    "amenities": ["ממ\"ד", "מעלית", "חניה"]
   },
   "notifications": {
     "dailyDigestTime": "19:30",

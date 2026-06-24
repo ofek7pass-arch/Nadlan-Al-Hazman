@@ -1067,6 +1067,7 @@ async function loadSettings() {
     if (f.sizeSqm)  setSlider('sizeMin',   'sizeMax',   f.sizeSqm.min,  f.sizeSqm.max);
     if (f.rooms)    setSlider('roomsMin',   'roomsMax',  f.rooms.min,    f.rooms.max);
     if (f.price)    setSlider('priceMin',   'priceMax',  f.price.min,    f.price.max);
+    if (f.radiusKm != null) setSlider('radiusMin', 'radiusMax', 0, f.radiusKm);
 
     // שחזור סוג נכס
     if (f.propertyTypes) {
@@ -1124,6 +1125,7 @@ async function saveSettings() {
                  max: parseInt(document.getElementById('sizeMax').value) },
       price:   { min: parseInt(document.getElementById('priceMin').value),
                  max: parseInt(document.getElementById('priceMax').value) },
+      radiusKm: parseInt(document.getElementById('radiusMax').value) || 0,
       propertyTypes: Array.from(document.querySelectorAll('#propTypeGroup .checked'))
                          .map(function(el){ return el.textContent.trim(); }),
       amenities: Array.from(document.querySelectorAll('#amenitiesGroup .checked'))

@@ -11,13 +11,17 @@ const https     = require('https');
 const path      = require('path');
 const fs        = require('fs');
 const madlan    = require('./madlan');
+const { haversineKm, baseCoords } = require('./geo');
 
 // ── הגדרות ──────────────────────────────────────────────────────
 const CHROME       = 'C:\\Users\\OfekPass\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe';
 const RAILWAY_URL  = (process.env.RAILWAY_URL || 'https://nadlan-al-hazman-production.up.railway.app').replace(/\/$/, '');
-const CITY_CODE    = '2550';
-const AREA         = '52';
-const AREA_SLUG    = 'south';
+
+// תתי-אזורים ביד2 לסריקה (ניתן להרחיב). 52 = אזור גדרה-יבנה (כולל גן יבנה).
+// כל אזור: { slug: region-slug ל-URL, area: קוד תת-אזור }
+const YAD2_AREAS = [
+  { slug: 'south', area: '52' }, // גדרה, יבנה, גן יבנה, בני עי"ש והסביבה
+];
 
 // ── fetch settings מ-Railway ────────────────────────────────────
 function fetchSettings() {
@@ -30,9 +34,9 @@ function fetchSettings() {
 }
 
 // ── שליחת תוצאות ל-Railway ──────────────────────────────────────
-function sendToRailway(apartments) {
+function sendToRailway(payload) {
   return new Promise((resolve, reject) => {
-    const body = JSON.stringify(apartments);
+    const body = JSON.stringify(payload);
     const u = new URL(`${RAILWAY_URL}/api/ingest`);
     const req = https.request({
       hostname: u.hostname, path: u.pathname, method: 'POST',
@@ -47,10 +51,9 @@ function sendToRailway(apartments) {
 }
 
 // ── סריקת דף יד2 ────────────────────────────────────────────────
-function buildUrl(filters, page = 1) {
+function buildUrl(areaDef, filters, page = 1) {
   const p = new URLSearchParams({
-    area:     AREA,
-    city:     CITY_CODE,
+    area:     areaDef.area,
     minRooms: filters.rooms?.min ?? 2,
     maxRooms: filters.rooms?.max ?? 7,
     minPrice: filters.price?.min ?? 3000,
@@ -59,7 +62,7 @@ function buildUrl(filters, page = 1) {
   });
   if (filters.sizeSqm?.min > 0) p.set('minSquareMeter', filters.sizeSqm.min);
   if (filters.sizeSqm?.max > 0) p.set('maxSquareMeter', filters.sizeSqm.max);
-  return `https://www.yad2.co.il/realestate/rent/${AREA_SLUG}?${p}`;
+  return `https://www.yad2.co.il/realestate/rent/${areaDef.slug}?${p}`;
 }
 
 function extractApartments(feed) {
@@ -70,18 +73,23 @@ function extractApartments(feed) {
     ...(feed.booster  || []),
     ...((feed.yad1?.listingsByTiersMatch) || []),
   ];
-  return items.map(a => ({
-    id:          `yad2_${a.token || a.orderId}`,
-    source:      'יד2',
-    address:     [a.address?.street?.text, a.address?.house?.number, a.address?.city?.text].filter(Boolean).join(' '),
-    price:       parseInt(a.price) || 0,
-    rooms:       parseFloat(a.additionalDetails?.roomsCount) || 0,
-    size_sqm:    parseInt(a.additionalDetails?.squareMeter) || 0,
-    url:         `https://www.yad2.co.il/item/${a.token || a.orderId}`,
-    image_url:   a.metaData?.coverImage || '',
-    description: a.additionalDetails?.property?.text || '',
-    raw:         { property_group: a.additionalDetails?.property?.text, tags: a.tags || [] },
-  }));
+  return items.map(a => {
+    const c = a.address?.coords || {};
+    return {
+      id:          `yad2_${a.token || a.orderId}`,
+      source:      'יד2',
+      address:     [a.address?.street?.text, a.address?.house?.number, a.address?.city?.text].filter(Boolean).join(' '),
+      price:       parseInt(a.price) || 0,
+      rooms:       parseFloat(a.additionalDetails?.roomsCount) || 0,
+      size_sqm:    parseInt(a.additionalDetails?.squareMeter) || 0,
+      url:         `https://www.yad2.co.il/item/${a.token || a.orderId}`,
+      image_url:   a.metaData?.coverImage || '',
+      description: a.additionalDetails?.property?.text || '',
+      lat:         c.lat,
+      lon:         c.lon,
+      raw:         { property_group: a.additionalDetails?.property?.text, tags: a.tags || [] },
+    };
+  });
 }
 
 // טוען עמוד יד2 בודד; מנסה שוב אם ShieldSquare חוסם (אין __NEXT_DATA__)
@@ -110,31 +118,36 @@ async function loadPage(browser, url, attempts = 3) {
   return null;
 }
 
-async function scrapeAllPages(browser, filters) {
-  const allApts = [];
+async function scrapeArea(browser, areaDef, filters) {
+  const areaApts = [];
   let totalPages = 1;
 
   for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-    const url = buildUrl(filters, pageNum);
-    console.log(`[yad2] עמוד ${pageNum}/${totalPages}`);
-
+    const url = buildUrl(areaDef, filters, pageNum);
     const result = await loadPage(browser, url);
     if (!result) {
-      console.warn(`[yad2] עמוד ${pageNum}: נכשל אחרי כל הניסיונות`);
+      console.warn(`[yad2] אזור ${areaDef.area} עמוד ${pageNum}: נכשל`);
+      if (pageNum === 1) return null; // האזור כולו נכשל
       break;
     }
-
     if (pageNum === 1 && result.pagination?.totalPages) {
       totalPages = Math.min(result.pagination.totalPages, 10);
-      console.log(`[yad2] סה"כ עמודים: ${totalPages}, מודעות: ${result.pagination.total}`);
+      console.log(`[yad2] אזור ${areaDef.area}: ${result.pagination.total} מודעות, ${totalPages} עמודים`);
     }
-
-    const apts = extractApartments(result.feed);
-    allApts.push(...apts);
-    console.log(`[yad2] עמוד ${pageNum}: ${apts.length} מודעות`);
+    areaApts.push(...extractApartments(result.feed));
   }
+  return areaApts;
+}
 
-  return allApts;
+// סורק את כל האזורים. מחזיר { apts, ok } — ok=false אם אף אזור לא נסרק
+async function scrapeYad2(browser, filters) {
+  const all = [];
+  let anyOk = false;
+  for (const areaDef of YAD2_AREAS) {
+    const apts = await scrapeArea(browser, areaDef, filters);
+    if (apts !== null) { anyOk = true; all.push(...apts); }
+  }
+  return { apts: all, ok: anyOk };
 }
 
 // ── main ─────────────────────────────────────────────────────────
@@ -151,10 +164,21 @@ async function main() {
     process.exit(1);
   }
 
+  const filters = settings.filters;
+  const radiusKm = filters.radiusKm || 0;
+  const base = baseCoords(filters.cityName);
+
+  // סינון רדיוס: מודעה בתוך radiusKm מעיר הבסיס (אם יש קואורדינטות לשתיהן)
+  function withinRadius(apt) {
+    if (!base || !radiusKm) return true;          // אין רדיוס מוגדר → לא מסננים
+    if (apt.lat == null || apt.lon == null) return true; // אין קואורדינטות → לא מסננים החוצה
+    return haversineKm(base.lat, base.lon, apt.lat, apt.lon) <= radiusKm;
+  }
+
   const apartments = [];
+  const scannedSources = [];
 
   // ── יד2 (Puppeteer + Chrome) ──
-  // headless:'new' (קרוב לדפדפן אמיתי) + פרופיל קבוע ששומר clearance cookies בין הרצות
   const browser = await puppeteer.launch({
     executablePath: CHROME,
     headless: 'new',
@@ -162,32 +186,36 @@ async function main() {
     args: ['--no-sandbox', '--disable-blink-features=AutomationControlled'],
   });
   try {
-    const yad2Apts = await scrapeAllPages(browser, settings.filters);
-    apartments.push(...yad2Apts);
+    const { apts, ok } = await scrapeYad2(browser, filters);
+    if (ok) {
+      const inRadius = apts.filter(withinRadius);
+      apartments.push(...inRadius);
+      scannedSources.push('יד2');
+      console.log(`[yad2] ${apts.length} מודעות → ${inRadius.length} ברדיוס`);
+    } else {
+      console.warn('[yad2] כל האזורים נכשלו — לא מסמן כנסרק (לא נמחק מ-DB)');
+    }
   } catch (e) {
     console.error('[yad2] שגיאה:', e.message);
   } finally {
     await browser.close();
   }
 
-  // ── מדלן (GraphQL) ──
+  // ── מדלן (GraphQL) — כבר מסונן לרדיוס בתוך madlan.scrape ──
   try {
-    const madlanApts = await madlan.scrape(settings.filters);
+    const madlanApts = await madlan.scrape(filters);
     apartments.push(...madlanApts);
+    scannedSources.push('מדלן');
   } catch (e) {
     console.error('[madlan] שגיאה:', e.message);
   }
 
-  if (!apartments.length) {
-    console.log('[scraper] לא נמצאו מודעות');
-    return;
-  }
-  console.log(`[scraper] סה"כ ${apartments.length} מודעות (יד2 + מדלן)`);
+  console.log(`[scraper] סה"כ ${apartments.length} מודעות (מקורות שנסרקו: ${scannedSources.join(', ') || '—'})`);
 
-  // שלח ל-Railway
+  // שלח ל-Railway (כולל אילו מקורות נסרקו — לתיקוף/מחיקת שנעלמו)
   try {
-    const result = await sendToRailway(apartments);
-    console.log(`[scraper] נשלחו ${apartments.length} → Railway: ${result.saved} חדשות נשמרו`);
+    const result = await sendToRailway({ apartments, scannedSources });
+    console.log(`[scraper] Railway: ${result.saved} חדשות, ${result.removed} הוסרו`);
   } catch (e) {
     console.error('[scraper] שגיאה בשליחה ל-Railway:', e.message);
   }
