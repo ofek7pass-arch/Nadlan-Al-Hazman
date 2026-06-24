@@ -26,6 +26,7 @@ function loadConfig() {
   return {
     ...defaults,
     ...saved,
+    filters:       { ...defaults.filters, ...(saved.filters || {}) },
     notifications: { ...defaults.notifications, ...(saved.notifications || {}) },
   };
 }
