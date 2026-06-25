@@ -19,14 +19,19 @@ db.exec(`
     image_url  TEXT,
     description TEXT,
     raw_data   TEXT,
+    lat         REAL,
+    lon         REAL,
+    distance_km REAL,
     found_at   TEXT DEFAULT (datetime('now','localtime')),
     last_seen  TEXT DEFAULT (datetime('now','localtime')),
     notified   INTEGER DEFAULT 0
   );
 `);
 
-// מיגרציה ל-DB קיים — הוספת last_seen אם חסר
-try { db.exec(`ALTER TABLE apartments ADD COLUMN last_seen TEXT`); } catch (e) { /* כבר קיים */ }
+// מיגרציות ל-DB קיים — הוספת עמודות אם חסרות
+for (const col of ['last_seen TEXT', 'lat REAL', 'lon REAL', 'distance_km REAL']) {
+  try { db.exec(`ALTER TABLE apartments ADD COLUMN ${col}`); } catch (e) { /* כבר קיים */ }
+}
 
 function isNew(id) {
   return !db.prepare('SELECT 1 FROM apartments WHERE id = ?').get(id);
@@ -35,8 +40,8 @@ function isNew(id) {
 // upsert — מוסיף חדש, או מעדכן מחיר/פרטים + last_seen אם כבר קיים
 function save(apt) {
   db.prepare(`
-    INSERT INTO apartments (id, source, address, price, rooms, size_sqm, url, image_url, description, raw_data, last_seen)
-    VALUES (@id, @source, @address, @price, @rooms, @size_sqm, @url, @image_url, @description, @raw_data, datetime('now','localtime'))
+    INSERT INTO apartments (id, source, address, price, rooms, size_sqm, url, image_url, description, raw_data, lat, lon, distance_km, last_seen)
+    VALUES (@id, @source, @address, @price, @rooms, @size_sqm, @url, @image_url, @description, @raw_data, @lat, @lon, @distance_km, datetime('now','localtime'))
     ON CONFLICT(id) DO UPDATE SET
       price       = excluded.price,
       rooms       = excluded.rooms,
@@ -45,8 +50,17 @@ function save(apt) {
       image_url   = excluded.image_url,
       description = excluded.description,
       raw_data    = excluded.raw_data,
+      lat         = excluded.lat,
+      lon         = excluded.lon,
+      distance_km = excluded.distance_km,
       last_seen   = datetime('now','localtime')
-  `).run({ ...apt, raw_data: JSON.stringify(apt.raw || {}) });
+  `).run({
+    ...apt,
+    lat: apt.lat ?? null,
+    lon: apt.lon ?? null,
+    distance_km: apt.distance_km ?? null,
+    raw_data: JSON.stringify(apt.raw || {}),
+  });
 }
 
 // מחיקת מודעות שנעלמו: ממקורות שנסרקו בהצלחה, מודעות שלא נראו בסריקה הנוכחית
@@ -72,8 +86,13 @@ function markNotified(ids) {
   db.prepare(`UPDATE apartments SET notified = 1 WHERE id IN (${placeholders})`).run(...ids);
 }
 
-function getRecent(limit = 20) {
-  return db.prepare("SELECT * FROM apartments ORDER BY found_at DESC LIMIT ?").all(limit);
+// כל המודעות הפעילות — ממוין לפי מרחק (הקרובות קודם), ואז מחיר. ללא תקרה מלאכותית.
+function getRecent(limit = 500) {
+  return db.prepare(`
+    SELECT * FROM apartments
+    ORDER BY (distance_km IS NULL), distance_km ASC, price ASC
+    LIMIT ?
+  `).all(limit);
 }
 
 module.exports = { isNew, save, getUnnotified, markNotified, getRecent, removeStaleBySources };

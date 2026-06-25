@@ -147,7 +147,9 @@ async function scrape(filters) {
     url:         `https://www.madlan.co.il/listing/${b.id}`,
     image_url:   b.images?.[0]?.imageUrl || '',
     description: b.description || '',
-    raw:         { property_group: b.propertyType || b.buildingType || '', tags: [] },
+    lat:         b.locationPoint?.lat,
+    lon:         b.locationPoint?.lng,
+    raw:         { property_group: b.propertyType || b.buildingType || '', tags: buildTags(b) },
   }));
 }
 

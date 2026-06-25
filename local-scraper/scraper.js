@@ -210,6 +210,15 @@ async function main() {
     console.error('[madlan] שגיאה:', e.message);
   }
 
+  // העשרת כל מודעה במרחק מעיר הבסיס (למיון בטאב — הקרובות קודם)
+  if (base) {
+    apartments.forEach(a => {
+      if (a.lat != null && a.lon != null) {
+        a.distance_km = Math.round(haversineKm(base.lat, base.lon, a.lat, a.lon) * 10) / 10;
+      }
+    });
+  }
+
   console.log(`[scraper] סה"כ ${apartments.length} מודעות (מקורות שנסרקו: ${scannedSources.join(', ') || '—'})`);
 
   // שלח ל-Railway (כולל אילו מקורות נסרקו — לתיקוף/מחיקת שנעלמו)

@@ -746,13 +746,11 @@
   <div class="results-header">
     <div class="section-title" style="margin-bottom:0;">תוצאות חיפוש</div>
     <div style="display:flex;align-items:center;gap:12px;">
-      <span class="results-counter" id="counter">1 מתוך 4</span>
-      <div class="nav-arrows">
-        <button class="arrow-btn" id="prevBtn" onclick="navigate(-1)" title="הקודם">&#x2039;</button>
-        <button class="arrow-btn" id="nextBtn" onclick="navigate(1)" title="הבא">&#x203A;</button>
-      </div>
+      <span class="results-counter" id="counter">—</span>
+      <button onclick="loadResults()" title="רענן" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:system-ui,Arial,sans-serif;">↻ רענן</button>
     </div>
   </div>
+  <div id="resultsMeta" style="font-size:12px;color:#64748b;margin:0 0 12px;"></div>
 
   <div id="aptCardWrapper"></div>
 
@@ -986,34 +984,36 @@ var GRADIENTS = [
   'linear-gradient(135deg,#a18cd1,#fbc2eb)'
 ];
 
-function renderApt(idx) {
+function renderResults() {
   var wrapper = document.getElementById('aptCardWrapper');
+  var counter = document.getElementById('counter');
   if (!apartments.length) {
     wrapper.innerHTML =
       '<div style="text-align:center;padding:60px 20px;color:#64748b;">' +
         '<div style="font-size:48px;margin-bottom:16px;">🔍</div>' +
         '<div style="font-size:18px;font-weight:600;margin-bottom:8px;">אין תוצאות עדיין</div>' +
-        '<div style="font-size:14px;">לחץ "סרוק עכשיו" כדי לחפש דירות</div>' +
+        '<div style="font-size:14px;">הסריקה רצה כל 30 דקות — חזור מאוחר יותר</div>' +
       '</div>';
-    document.getElementById('counter').textContent = '0 תוצאות';
-    document.getElementById('prevBtn').disabled = true;
-    document.getElementById('nextBtn').disabled = true;
+    counter.textContent = '0 תוצאות';
     return;
   }
-  var a = apartments[idx];
-  var imgHtml = a.imageUrl
-    ? '<img src="' + a.imageUrl + '" style="width:100%;height:200px;object-fit:cover;" onerror="this.parentElement.style.background=\'' + GRADIENTS[idx % GRADIENTS.length] + '\';this.remove()">'
-    : '<div class="apt-image" style="background:' + GRADIENTS[idx % GRADIENTS.length] + '">🏠</div>';
+  counter.textContent = apartments.length + ' תוצאות';
 
-  wrapper.innerHTML =
-    '<div class="apt-card">' +
+  wrapper.innerHTML = apartments.map(function(a, idx) {
+    var imgHtml = a.imageUrl
+      ? '<img src="' + a.imageUrl + '" style="width:100%;height:160px;object-fit:cover;" onerror="this.parentElement.style.background=\'' + GRADIENTS[idx % GRADIENTS.length] + '\';this.remove()">'
+      : '<div class="apt-image" style="background:' + GRADIENTS[idx % GRADIENTS.length] + ';height:160px;">🏠</div>';
+    var distBadge = (a.distanceKm != null)
+      ? '<span style="background:#EFF6FF;color:#2563EB;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;">' + a.distanceKm + ' ק"מ</span>'
+      : '';
+    return '<div class="apt-card" style="margin-bottom:16px;">' +
       imgHtml +
       '<div class="apt-body">' +
         '<div class="apt-top">' +
           '<div class="apt-address">' + (a.address || 'כתובת לא ידועה') + '</div>' +
           '<span class="source-tag ' + a.sourceClass + '">' + a.source + '</span>' +
         '</div>' +
-        '<div class="apt-details">' + a.details + '</div>' +
+        '<div class="apt-details">' + a.details + (distBadge ? ' &nbsp; ' + distBadge : '') + '</div>' +
         '<div class="apt-price">' + a.price + '</div>' +
         '<div class="apt-desc">' + (a.desc || '') + '</div>' +
         '<div class="apt-footer">' +
@@ -1022,19 +1022,11 @@ function renderApt(idx) {
         '</div>' +
       '</div>' +
     '</div>';
-
-  document.getElementById('counter').textContent = (idx + 1) + ' מתוך ' + apartments.length;
-  document.getElementById('prevBtn').disabled = (idx === 0);
-  document.getElementById('nextBtn').disabled = (idx === apartments.length - 1);
-}
-
-function navigate(dir) {
-  currentApt = Math.max(0, Math.min(apartments.length - 1, currentApt + dir));
-  renderApt(currentApt);
+  }).join('');
 }
 
 // init — empty state
-renderApt(0);
+renderResults();
 
 /* ════════════════════════════════════
    API — טעינת הגדרות מהשרת
@@ -1160,40 +1152,46 @@ async function saveSettings() {
 /* ════════════════════════════════════
    API — טעינת תוצאות מהשרת
 ════════════════════════════════════ */
+// המרת זמן UTC (כפי שנשמר בשרת) לשעון ישראל
+function fmtIsraelTime(s) {
+  if (!s) return '';
+  try {
+    var d = new Date(s.replace(' ', 'T') + 'Z');
+    return d.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch (e) { return s.slice(0, 16); }
+}
+
 async function loadResults() {
   try {
-    var res = await fetch('/api/results');
+    var res = await fetch('/api/results?t=' + Date.now()); // עוקף cache
     var data = await res.json();
-    if (!data.length) { renderApt(0); return; }
 
     apartments = data.map(function(apt) {
-      var gradients = [
-        'linear-gradient(135deg,#667eea,#764ba2)',
-        'linear-gradient(135deg,#f093fb,#f5576c)',
-        'linear-gradient(135deg,#4facfe,#00f2fe)',
-        'linear-gradient(135deg,#43e97b,#38f9d7)'
-      ];
       return {
-        gradient: apt.image_url ? '' : gradients[Math.floor(Math.random()*gradients.length)],
-        emoji: apt.image_url ? '' : '🏠',
         imageUrl: apt.image_url || '',
         address: apt.address || 'כתובת לא ידועה',
         details: [
           apt.rooms ? apt.rooms + ' חדרים' : '',
-          apt.size_sqm ? apt.size_sqm + ' מ"ר' : '',
-          apt.source
+          apt.size_sqm ? apt.size_sqm + ' מ"ר' : ''
         ].filter(Boolean).join(' | '),
+        distanceKm: apt.distance_km != null ? apt.distance_km : null,
         price: apt.price ? apt.price.toLocaleString('he-IL') + ' ₪' : 'מחיר לא צוין',
         source: apt.source || '',
         sourceClass: apt.source && apt.source.includes('יד2') ? 'tag-yad2' :
                      apt.source && apt.source.includes('מדלן') ? 'tag-madlan' : 'tag-tg',
         desc: apt.description || '',
-        time: apt.found_at ? 'נמצא: ' + apt.found_at.slice(0,16) : '',
+        time: apt.last_seen ? 'עודכן: ' + fmtIsraelTime(apt.last_seen) : '',
         url: apt.url || '#'
       };
     });
-    currentApt = 0;
-    renderApt(0);
+    renderResults();
+
+    // "עודכן לאחרונה" — הזמן האחרון שבו נראתה מודעה כלשהי
+    var meta = document.getElementById('resultsMeta');
+    if (meta) {
+      var latest = data.reduce(function(m, a) { return (a.last_seen && a.last_seen > m) ? a.last_seen : m; }, '');
+      meta.textContent = latest ? 'עודכן לאחרונה: ' + fmtIsraelTime(latest) + ' · ממוין לפי קרבה לעיר הבסיס' : '';
+    }
   } catch(e) {
     console.log('loadResults (offline mode):', e.message);
   }
