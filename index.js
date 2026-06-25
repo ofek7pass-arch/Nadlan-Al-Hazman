@@ -102,9 +102,9 @@ app.post('/api/settings', (req, res) => {
   }
 });
 
-// GET תוצאות אחרונות
+// GET תוצאות אחרונות — כל המודעות הפעילות (ממוין לפי קרבה)
 app.get('/api/results', (req, res) => {
-  res.json(getRecent(50));
+  res.json(getRecent(500));
 });
 
 // POST סריקה ידנית
