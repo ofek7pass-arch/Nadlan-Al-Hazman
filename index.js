@@ -199,6 +199,35 @@ app.get('/api/notif-check', async (req, res) => {
   });
 });
 
+// בודק אם URL חי (עוקב הפניות, מחזיר סטטוס סופי). למניעת קישורי סרק בסיכום.
+function checkUrl(url) {
+  return new Promise((resolve) => {
+    const visit = (u, depth) => {
+      if (depth > 4) return resolve({ ok: false, status: 'too-many-redirects' });
+      const lib = u.startsWith('https') ? require('https') : require('http');
+      const req = lib.get(u, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/124 Safari/537.36', 'Accept-Language': 'he-IL' }, timeout: 10000 }, (res) => {
+        if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+          res.destroy();
+          const next = res.headers.location.startsWith('http') ? res.headers.location : new URL(res.headers.location, u).href;
+          return visit(next, depth + 1);
+        }
+        res.destroy();
+        resolve({ ok: res.statusCode === 200, status: res.statusCode });
+      });
+      req.on('error', (e) => resolve({ ok: false, status: e.code || 'err' }));
+      req.on('timeout', () => { req.destroy(); resolve({ ok: false, status: 'timeout' }); });
+    };
+    visit(url, 0);
+  });
+}
+
+// GET בדיקת נגישות מ-Railway לאתרים (לקבוע איפה לאמת קישורים)
+app.get('/api/url-check', async (req, res) => {
+  const u = req.query.u;
+  if (!u) return res.json({ error: 'missing u' });
+  res.json({ url: u, ...(await checkUrl(u)) });
+});
+
 // POST שליחת דיג'סט ידנית (לבדיקה)
 app.post('/api/send-digest', async (req, res) => {
   try {
