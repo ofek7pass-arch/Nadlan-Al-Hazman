@@ -77,6 +77,12 @@ function removeStaleBySources(sources, seenIds) {
   return db.prepare(sql).run(...params).changes;
 }
 
+function removeByIds(ids) {
+  if (!ids.length) return 0;
+  const ph = ids.map(() => '?').join(',');
+  return db.prepare(`DELETE FROM apartments WHERE id IN (${ph})`).run(...ids).changes;
+}
+
 function getUnnotified() {
   return db.prepare("SELECT * FROM apartments WHERE notified = 0 ORDER BY found_at DESC").all();
 }
@@ -96,4 +102,4 @@ function getRecent(limit = 500) {
   `).all(limit);
 }
 
-module.exports = { isNew, save, getUnnotified, markNotified, getRecent, removeStaleBySources };
+module.exports = { isNew, save, getUnnotified, markNotified, getRecent, removeStaleBySources, removeByIds };

@@ -8,7 +8,7 @@ const yad2Scraper     = require('./scrapers/yad2');
 const madlanScraper   = require('./scrapers/madlan');
 const telegramScraper = require('./scrapers/telegram');
 const { applyFilters } = require('./filters/filter');
-const { isNew, save, getUnnotified, markNotified, getRecent, removeStaleBySources } = require('./db/database');
+const { isNew, save, getUnnotified, markNotified, getRecent, removeStaleBySources, removeByIds } = require('./db/database');
 const whatsapp = require('./notifiers/whatsapp');
 const email    = require('./notifiers/email');
 
@@ -63,11 +63,26 @@ async function runScan() {
 // ── DAILY DIGEST ─────────────────────────────────────────────
 async function sendDailyDigest() {
   const config = loadConfig();
-  const unnotified = getUnnotified();
+  let unnotified = getUnnotified();
   if (!unnotified.length) {
     console.log('[digest] אין דירות חדשות לשליחה');
     return;
   }
+
+  // אימות קישורים לפני שליחה — סינון מודעות מתות (404/410) כדי לא לשלוח תוכן סרק
+  const checked = await Promise.all(unnotified.map(async a => ({ a, r: await checkUrl(a.url) })));
+  const deadIds = checked.filter(x => x.r.status === 404 || x.r.status === 410).map(x => x.a.id);
+  if (deadIds.length) {
+    removeByIds(deadIds);           // מוחק מ-DB כדי שלא יופיעו גם בטאב
+    markNotified(deadIds);          // ליתר ביטחון — שלא ייכנסו לדיג'סט הבא
+    unnotified = checked.filter(x => !(x.r.status === 404 || x.r.status === 410)).map(x => x.a);
+    console.warn(`[digest] סוננו ${deadIds.length} קישורים מתים (404). נותרו ${unnotified.length}`);
+  }
+  if (!unnotified.length) {
+    console.log('[digest] אחרי סינון — אין דירות תקפות לשליחה');
+    return;
+  }
+
   console.log(`[digest] שולח ${unnotified.length} דירות...`);
   const [waOk, emailOk] = await Promise.all([
     whatsapp.sendDigest(unnotified, config),
@@ -231,6 +246,19 @@ app.get('/api/url-check', async (req, res) => {
 // POST שליחת דיג'סט ידנית (לבדיקה)
 app.post('/api/send-digest', async (req, res) => {
   try {
+    // ?dryrun=1 — מריץ את אימות הקישורים בלבד, ללא שליחה (לבדיקה)
+    if (req.query.dryrun === '1') {
+      const list = getUnnotified();
+      const checked = await Promise.all(list.map(async a => ({ id: a.id, source: a.source, url: a.url, ...(await checkUrl(a.url)) })));
+      const dead = checked.filter(x => x.status === 404 || x.status === 410);
+      return res.json({
+        total: list.length,
+        dead: dead.length,
+        valid: list.length - dead.length,
+        deadSample: dead.slice(0, 5),
+        statusBreakdown: checked.reduce((m, x) => { m[x.status] = (m[x.status] || 0) + 1; return m; }, {}),
+      });
+    }
     // ?self=1 — בדיקת Brevo: מייל ל-ofek7pass בלבד, מחזיר שגיאה אמיתית אם יש
     if (req.query.self === '1') {
       const axios = require('axios');
