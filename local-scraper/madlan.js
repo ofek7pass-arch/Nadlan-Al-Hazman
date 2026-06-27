@@ -144,7 +144,7 @@ async function scrape(filters) {
     price:       parseInt(b.price) || 0,
     rooms:       parseFloat(b.beds) || 0,
     size_sqm:    parseInt(b.area) || 0,
-    url:         `https://www.madlan.co.il/listing/${b.id}`,
+    url:         `https://www.madlan.co.il/listings/${b.id}`,
     image_url:   b.images?.[0]?.imageUrl || '',
     description: b.description || '',
     lat:         b.locationPoint?.lat,

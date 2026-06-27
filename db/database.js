@@ -47,6 +47,7 @@ function save(apt) {
       rooms       = excluded.rooms,
       size_sqm    = excluded.size_sqm,
       address     = excluded.address,
+      url         = excluded.url,
       image_url   = excluded.image_url,
       description = excluded.description,
       raw_data    = excluded.raw_data,
